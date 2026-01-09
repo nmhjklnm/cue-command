@@ -99,5 +99,5 @@ git push origin v0.1.1
 ## QQ 群
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/nmhjklnm/cue-stack/main/assets/qq.jpg" alt="QQ 群二维码" width="25%" />
+  <img src="./assets/qq.jpg" alt="QQ 群二维码" width="25%" />
 </p>
