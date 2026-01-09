@@ -1,0 +1,49 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify tag matches package.json version
+        shell: bash
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          TAG_VERSION="${TAG_NAME#v}"
+
+          PROJECT_VERSION=$(node -p "require('./package.json').version")
+
+          echo "Tag version:     ${TAG_VERSION}"
+          echo "Project version: ${PROJECT_VERSION}"
+
+          if [ "${TAG_VERSION}" != "${PROJECT_VERSION}" ]; then
+            echo "Tag version does not match package.json version" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Pack (sanity check)
+        run: npm pack --silent
+
+      - name: Publish
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,25 @@
+{
+  "name": "cue-command",
+  "version": "0.1.0",
+  "description": "Cue command protocol adapter (stdin/stdout JSON)",
+  "license": "Apache-2.0",
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "cue-command": "bin/cue-command.js"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "prepare": "node -c src/cli.js && node -c src/handler.js"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  }
+}
