@@ -18,25 +18,25 @@
 [![Repo: cue-command](https://img.shields.io/badge/repo-cue--command-111827)](https://github.com/nmhjklnm/cue-command)
 ![License](https://img.shields.io/badge/license-Apache--2.0-1E40AF)
 
-A command protocol adapter for Cue, compatible with the existing SQLite mailbox (`~/.cue/cue.db`).
+这是 Cue 的命令行协议适配器，兼容现有的 SQLite mailbox（`~/.cue/cue.db`）。
 
-Note: image sending is currently unavailable (WIP).
+提示：发送图片功能暂不可用（开发中）。
 
-## Quick start (2 steps)
+## 快速开始（2 步）
 
-### Step 1: Install cueme
+### 第 1 步：安装 cueme
 
 ```bash
 npm install -g cueme
 ```
 
-### Step 2: Configure the protocol.md as your system prompt
+### 第 2 步：把 protocol.md 配置到你的系统提示词里
 
-Add the contents of `cue-command/protocol.md` to your tool's system prompt / rules.
+把 `cue-command/protocol.md` 的内容添加到你正在使用的工具/IDE/Agent 的系统提示词 / rules 里。
 
-This file defines the Human Agent Protocol (HAP) rules and the `cueme` command interface.
+该文件定义了 Human Agent Protocol（HAP）规则，以及 `cueme` 的命令接口。
 
-## Usage
+## 用法
 
 ### join
 
@@ -62,15 +62,15 @@ cueme cue --agent_id "tavilron" --prompt "What should I do next?" --timeout 600
 cueme pause --agent_id "tavilron" --prompt "Waiting..."
 ```
 
-All commands output plain text to stdout.
+所有命令都以纯文本输出到 stdout。
 
-## Release
+## 发布
 
-Publishing is tag-driven (GitHub Actions). Create a tag `v<version>` that matches `package.json` `version`.
+发布是 tag 驱动的（GitHub Actions）。创建一个 tag `v<version>`，并确保它与 `package.json` 的 `version` 一致。
 
 ```bash
 git tag v0.1.1
 git push origin v0.1.1
 ```
 
-The workflow publishes to npm using `NPM_TOKEN` from GitHub repo secrets.
+工作流会使用 GitHub 仓库 secrets 中的 `NPM_TOKEN` 发布到 npm。
