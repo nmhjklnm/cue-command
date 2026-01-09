@@ -32,14 +32,14 @@ async function main() {
   if (!sub || sub === 'help' || sub === '-h' || sub === '--help') {
     process.stdout.write(
       [
-        'cue-command (stdin/stdout JSON)',
+        'cueme (stdin/stdout JSON)',
         '',
         'Usage:',
-        '  cue-command join',
-        '  cue-command recall --hints "..."',
-        '  cue-command cue --agent_id "..." --prompt "..." [--payload "{...}"] [--timeout 600]',
-        '  cue-command pause --agent_id "..." [--prompt "..."]',
-        '  cue-command rpc   # read one JSON object from stdin: {"cmd":...}',
+        '  cueme join',
+        '  cueme recall --hints "..."',
+        '  cueme cue --agent_id "..." --prompt "..." [--payload "{...}"] [--timeout 600]',
+        '  cueme pause --agent_id "..." [--prompt "..."]',
+        '  cueme rpc   # read one JSON object from stdin: {"cmd":...}',
         '',
         'All commands output a single JSON object to stdout.',
       ].join('\n') + '\n'

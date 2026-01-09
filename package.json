@@ -1,6 +1,6 @@
 {
-  "name": "cue-command",
-  "version": "0.1.0",
+  "name": "cueme",
+  "version": "0.1.1",
   "description": "Cue command protocol adapter (stdin/stdout JSON)",
   "license": "Apache-2.0",
   "files": [
@@ -10,7 +10,7 @@
     "LICENSE"
   ],
   "bin": {
-    "cue-command": "bin/cue-command.js"
+    "cueme": "bin/cue-command.js"
   },
   "type": "commonjs",
   "engines": {
