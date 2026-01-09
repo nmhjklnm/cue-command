@@ -93,3 +93,11 @@ git push origin v0.1.1
 ```
 
 The workflow publishes to npm using `NPM_TOKEN` from GitHub repo secrets.
+
+---
+
+## QQ Group
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/nmhjklnm/cue-stack/main/assets/qq.jpg" alt="QQ group QR code" width="25%" />
+</p>
