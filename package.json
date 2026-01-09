@@ -6,6 +6,7 @@
   "files": [
     "bin/",
     "src/",
+    "protocol.md",
     "README.md",
     "LICENSE"
   ],

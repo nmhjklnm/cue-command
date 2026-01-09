@@ -32,9 +32,26 @@ npm install -g cueme
 
 ### 第 2 步：把 protocol.md 配置到你的系统提示词里
 
-把 `cue-command/protocol.md` 的内容添加到你正在使用的工具/IDE/Agent 的系统提示词 / rules 里。
+把 `protocol.md` 的内容复制到你正在使用的 runtime 的系统提示词 / 持久规则里：
+
+- [`protocol.md`](https://github.com/nmhjklnm/cue-command/blob/main/protocol.md)
+
+如果你是通过 npm 安装的，`protocol.md` 也会包含在安装包里。
 
 该文件定义了 Human Agent Protocol（HAP）规则，以及 `cueme` 的命令接口。
+
+### 第 3 步：启动 UI 并连接
+
+`cueme` 会与 UI 共用同一个 SQLite mailbox（`~/.cue/cue.db`）。先启动 UI：
+
+```bash
+npm install -g cue-console
+cue-console dev --port 3000
+```
+
+打开 `http://localhost:3000`，然后在你的 runtime 聊天里输入：
+
+`cue`
 
 ## 用法
 

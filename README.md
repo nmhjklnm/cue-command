@@ -32,9 +32,26 @@ npm install -g cueme
 
 ### Step 2: Configure the protocol.md as your system prompt
 
-Add the contents of `cue-command/protocol.md` to your tool's system prompt / rules.
+Copy the contents of `protocol.md` into your runtime's system prompt / persistent rules:
+
+- [`protocol.md`](https://github.com/nmhjklnm/cue-command/blob/main/protocol.md)
+
+If you installed via npm, `protocol.md` is also included in the package.
 
 This file defines the Human Agent Protocol (HAP) rules and the `cueme` command interface.
+
+### Step 3: Run the UI and connect
+
+`cueme` speaks to the same SQLite mailbox used by the UI (`~/.cue/cue.db`). Start the UI:
+
+```bash
+npm install -g cue-console
+cue-console dev --port 3000
+```
+
+Open `http://localhost:3000`, then in your runtime chat type:
+
+`cue`
 
 ## Usage
 
