@@ -1,7 +1,7 @@
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
-const sqlite3 = require('sqlite3');
+const Database = require('better-sqlite3');
 
 function getDbPath() {
   return path.join(os.homedir(), '.cue', 'cue.db');
@@ -15,26 +15,18 @@ function ensureDbDir() {
 
 function openDb() {
   const dbPath = ensureDbDir();
-  const db = new sqlite3.Database(dbPath);
+  const db = new Database(dbPath);
   return { db, dbPath };
 }
 
-function run(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function onRun(err) {
-      if (err) return reject(err);
-      resolve({ lastID: this.lastID, changes: this.changes });
-    });
-  });
+async function run(db, sql, params = []) {
+  const info = db.prepare(sql).run(params);
+  return { lastID: info.lastInsertRowid, changes: info.changes };
 }
 
-function get(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) return reject(err);
-      resolve(row || null);
-    });
-  });
+async function get(db, sql, params = []) {
+  const row = db.prepare(sql).get(params);
+  return row || null;
 }
 
 async function initSchema(db) {
@@ -74,7 +66,22 @@ async function initSchema(db) {
 }
 
 function nowIso() {
-  return new Date().toISOString();
+  const now = new Date();
+  const offset = -now.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const pad = (n) => String(Math.abs(n)).padStart(2, '0');
+  const offsetHours = pad(Math.floor(Math.abs(offset) / 60));
+  const offsetMinutes = pad(Math.abs(offset) % 60);
+  
+  const year = now.getFullYear();
+  const month = pad(now.getMonth() + 1);
+  const day = pad(now.getDate());
+  const hours = pad(now.getHours());
+  const minutes = pad(now.getMinutes());
+  const seconds = pad(now.getSeconds());
+  const ms = String(now.getMilliseconds()).padStart(3, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}${sign}${offsetHours}:${offsetMinutes}`;
 }
 
 module.exports = { openDb, initSchema, run, get, nowIso, getDbPath };

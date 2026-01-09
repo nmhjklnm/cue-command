@@ -1,12 +1,20 @@
 # cueme
 
-A command protocol adapter for Cue (stdin/stdout JSON), compatible with the existing SQLite mailbox (`~/.cue/cue.db`).
+A command protocol adapter for Cue, compatible with the existing SQLite mailbox (`~/.cue/cue.db`).
 
-## Install
+## Quick start (2 steps)
+
+### Step 1: Install cueme
 
 ```bash
 npm install -g cueme
 ```
+
+### Step 2: Configure the protocol.md as your system prompt
+
+Add the contents of `cue-command/protocol.md` to your tool's system prompt / rules.
+
+This file defines the Human Agent Protocol (HAP) rules and the `cueme` command interface.
 
 ## Usage
 
@@ -34,13 +42,7 @@ cueme cue --agent_id "tavilron" --prompt "What should I do next?" --timeout 600
 cueme pause --agent_id "tavilron" --prompt "Waiting..."
 ```
 
-### rpc mode (stdin)
-
-```bash
-echo '{"cmd":"join"}' | cueme rpc
-```
-
-All commands output one JSON object to stdout.
+All commands output plain text to stdout.
 
 ## Release
 

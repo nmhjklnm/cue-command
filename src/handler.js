@@ -86,7 +86,7 @@ async function handleJoin(db) {
 async function handleRecall(db, hints) {
   const row = await get(
     db,
-    'SELECT agent_id FROM cue_requests WHERE agent_id != "" AND prompt LIKE ? ORDER BY created_at DESC LIMIT 1',
+    "SELECT agent_id FROM cue_requests WHERE agent_id != '' AND prompt LIKE ? ORDER BY created_at DESC LIMIT 1",
     [`%${hints}%`]
   );
 
@@ -220,15 +220,6 @@ async function handleCueLike(db, { mode, agent_id, prompt, payload, timeoutSecon
       };
     }
 
-    if (mode === 'cue') {
-      const updated_at = nowIso();
-      await run(
-        db,
-        'UPDATE cue_requests SET status = ?, updated_at = ? WHERE request_id = ?',
-        ['COMPLETED', updated_at, request_id]
-      );
-    }
-
     return {
       ok: true,
       data: {
@@ -287,35 +278,10 @@ async function handlePause(db, { agent_id, prompt }) {
   });
 }
 
-async function handleCommand({ subcommand, args, input }) {
+async function handleCommand({ subcommand, args }) {
   const { db, dbPath } = openDb();
   try {
     await initSchema(db);
-
-    if (subcommand === 'rpc') {
-      if (!input || typeof input !== 'object') {
-        return { ok: false, error: 'rpc expects a JSON object on stdin' };
-      }
-      const cmd = input.cmd;
-      if (cmd === 'join') return await handleJoin(db);
-      if (cmd === 'recall') return await handleRecall(db, String(input.hints || ''));
-      if (cmd === 'cue') {
-        return await handleCueLike(db, {
-          mode: 'cue',
-          agent_id: String(input.agent_id || ''),
-          prompt: String(input.prompt || ''),
-          payload: input.payload == null ? null : String(input.payload),
-          timeoutSeconds: input.timeout == null ? 600 : Number(input.timeout),
-        });
-      }
-      if (cmd === 'pause') {
-        return await handlePause(db, {
-          agent_id: String(input.agent_id || ''),
-          prompt: input.prompt == null ? null : String(input.prompt),
-        });
-      }
-      return { ok: false, error: `unknown cmd: ${cmd}` };
-    }
 
     if (subcommand === 'join') return await handleJoin(db);
 

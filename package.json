@@ -20,6 +20,6 @@
     "prepare": "node -c src/cli.js && node -c src/handler.js"
   },
   "dependencies": {
-    "sqlite3": "^5.1.7"
+    "better-sqlite3": "^11.7.0"
   }
 }

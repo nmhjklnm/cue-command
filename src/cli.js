@@ -1,4 +1,3 @@
-const { readAllStdin } = require('./io');
 const { handleCommand } = require('./handler');
 
 function parseArgs(argv) {
@@ -25,6 +24,26 @@ function parseArgs(argv) {
   return out;
 }
 
+function extractTextFromResult(result) {
+  if (!result || typeof result !== 'object') return '';
+  if (result.ok === false) return result.error ? String(result.error) : '';
+
+  const data = result.data;
+  if (!data || typeof data !== 'object') return '';
+
+  const contents = Array.isArray(data.contents) ? data.contents : [];
+  const textParts = [];
+  for (const c of contents) {
+    if (c && c.type === 'text' && typeof c.text === 'string' && c.text.length > 0) {
+      textParts.push(c.text);
+    }
+  }
+  if (textParts.length > 0) return textParts.join('');
+
+  if (typeof data.message === 'string') return data.message;
+  return '';
+}
+
 async function main() {
   const parsed = parseArgs(process.argv);
   const sub = parsed._[0];
@@ -32,31 +51,23 @@ async function main() {
   if (!sub || sub === 'help' || sub === '-h' || sub === '--help') {
     process.stdout.write(
       [
-        'cueme (stdin/stdout JSON)',
+        'cueme',
         '',
         'Usage:',
         '  cueme join',
         '  cueme recall --hints "..."',
         '  cueme cue --agent_id "..." --prompt "..." [--payload "{...}"] [--timeout 600]',
         '  cueme pause --agent_id "..." [--prompt "..."]',
-        '  cueme rpc   # read one JSON object from stdin: {"cmd":...}',
         '',
-        'All commands output a single JSON object to stdout.',
+        'Output:',
+        '  - join/recall/cue/pause: plain text (stdout)',
       ].join('\n') + '\n'
     );
     return;
   }
 
-  let input = null;
-  if (sub === 'rpc' || parsed.json) {
-    const raw = await readAllStdin();
-    if (raw.trim().length > 0) {
-      input = JSON.parse(raw);
-    }
-  }
-
-  const result = await handleCommand({ subcommand: sub, args: parsed, input });
-  process.stdout.write(JSON.stringify(result) + '\n');
+  const result = await handleCommand({ subcommand: sub, args: parsed });
+  process.stdout.write(extractTextFromResult(result) + '\n');
 }
 
 module.exports = { main };

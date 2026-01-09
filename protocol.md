@@ -1,84 +1,65 @@
-# Cue Command Protocol (cueme)
+# Human Agent Protocol (HAP)
 
-你与用户的协作交互必须通过一个命令行工具 `cueme` 完成，它通过 SQLite mailbox (~/.cue/cue.db) 与 cue-console 通信。
+你与用户的协作交互通过命令行工具 `cueme` 完成。
 
-## 总原则（Human Agent Protocol / HAP）
+当用户接受 HAP：你必须在每次阶段性输出或准备结束回复前调用 `cueme cue`（或 `cueme pause`）等待用户继续。
 
-- 消息表达方式有两种：一种通过 cueme 输出（写入 cue-console 的协作收件箱），另一种通过非 cueme 的方式输出。
-- 当用户接受 HAP 时，表示他已放弃通过非 cueme 的消息交互方式。
-- **强制规则**：每次回复结束前，你必须通过 `cueme cue`（或 `cueme pause`）把内容发给用户并等待用户继续；在未执行 cueme 之前不得结束回复。
-- 不确定是否需要调用时，默认调用 cueme。
+## cueme (command interface)
 
-## 你拥有的“命令工具”
+### join() -> message
 
-工具名：`cueme`（Node CLI）
-
-### 1) join：生成 agent_id
-
-用途：首次会话/没有 agent_id 时，生成新的 agent_id。
-调用：
+Command:
 
 - `cueme join`
 
-输出：JSON，包含 `data.agent_id` 和 `data.message`。
+Returns (plain text):
 
-### 2) recall：找回 agent_id
+- a short message (includes `agent_id=...`)
 
-用途：忘记 agent_id 时，用 hints 从历史 cue_requests.prompt 中搜索最近 agent_id。
-调用：
+### recall(hints: str) -> message
 
-- `cueme recall --hints "<你记得的线索>"`
+Command:
 
-输出：JSON，包含 `data.agent_id`。
+- `cueme recall --hints "..."`
 
-### 3) cue：发送协作请求并等待用户响应
+Returns (plain text):
 
-用途：把“你要对用户说的话/提问/选项/总结”写进协作收件箱，并等待用户在 cue-console 里回复。
-调用：
+- a short message (includes `agent_id=...`)
 
-- `cueme cue --agent_id "<agent_id>" --prompt "<要发给用户的文本>" --timeout 600`
-- 可选：`--payload "<JSON字符串>"`（如果需要结构化 UI 交互）
-- 超时：默认 600 秒（可改）
+### cue(prompt: str, agent_id: str, payload?: str) -> text
 
-输出：JSON，关键字段：
+Command:
 
-- `ok: true`
-- `data.request_id`
-- `data.cancelled` (true/false)
-- `data.response`：{ text: string, images: [{ mime_type, base64_data }, ...] }
-- `data.contents`：等价于 MCP 的 TextContent/ImageContent 列表（用于你后续拼接/理解）
+- `cueme cue --agent_id "..." --prompt "..." [--payload "{...}"] [--timeout 600]`
 
-语义：
+Returns:
 
-- cancelled=true：用户未继续/取消
-- response.text/images 都空：没有用户输入（需要你调用 pause 等待）
-- 有 response：用户提供了下一步指令（text）或图片
+- plain text (stdout)
 
-### 4) pause：无限等待用户点 Continue
+`payload`:
 
-用途：暂停等待，不设置超时，直到用户在 cue-console 点 Continue 或输入内容。
-调用：
+- Optional structured request, encoded as a JSON string.
+- `cueme` does not validate payload; it passes it through.
 
-- `cueme pause --agent_id "<agent_id>" --prompt "<等待提示，可选>"`
+Payload protocol (JSON string):
 
-输出：JSON，字段与 cue 类似。
+- required: {"type": "choice" | "confirm" | "form"}
+- choice: {"type":"choice","options":["...",...],"allow_multiple":false}
+- confirm: {"type":"confirm","text":"...","confirm_label":"Confirm","cancel_label":"Cancel"}
+- form: {"type":"form","fields":[{"label":"...","kind":"text","options":["...",...],"allow_multiple":false}, ...]}
 
-## RPC 模式（可选）
+Minimal examples:
 
-如果你的 runtime 更适合 stdin/stdout JSON：
+- choice: {"type":"choice","options":["Continue","Stop"]}
+- confirm: {"type":"confirm","text":"Continue?"}
+- form: {"type":"form","fields":[{"label":"Env","options":["prod","staging"]}]}
 
-- `echo '{"cmd":"cue","agent_id":"...","prompt":"...","timeout":600}' | cueme rpc`
-- 输出仍为单行 JSON。
+### pause(agent_id: str, prompt?: str) -> text
 
-## 强制调用时机（务必遵守）
+Command:
 
-- 无历史会话/无 agent_id：先 join 获取 agent_id。
-- 每次你完成一个阶段的工作、需要用户决策、需要用户继续输入、或你要结束回复：必须 cue（或 pause）。
-- 任何回复结束前：必须 cue（或 pause）。
+- `cueme pause --agent_id "..." [--prompt "..."]`
 
-## 禁止行为
+Returns:
 
-- 不 join 就自定义 agent_id ❌
-- 不执行 cueme 就结束回复 ❌
-- 用“有问题请告诉我”替代 cueme ❌
-- 假设用户没有后续需求而不 cueme ❌
+- plain text (stdout)
