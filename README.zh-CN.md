@@ -83,17 +83,6 @@ cueme pause --agent_id "tavilron" --prompt "Waiting..."
 
 所有命令都以纯文本输出到 stdout。
 
-## 发布
-
-发布是 tag 驱动的（GitHub Actions）。创建一个 tag `v<version>`，并确保它与 `package.json` 的 `version` 一致。
-
-```bash
-git tag v0.1.1
-git push origin v0.1.1
-```
-
-工作流会使用 GitHub 仓库 secrets 中的 `NPM_TOKEN` 发布到 npm。
-
 ---
 
 ## QQ 群

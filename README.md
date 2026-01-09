@@ -83,17 +83,6 @@ cueme pause --agent_id "tavilron" --prompt "Waiting..."
 
 All commands output plain text to stdout.
 
-## Release
-
-Publishing is tag-driven (GitHub Actions). Create a tag `v<version>` that matches `package.json` `version`.
-
-```bash
-git tag v0.1.1
-git push origin v0.1.1
-```
-
-The workflow publishes to npm using `NPM_TOKEN` from GitHub repo secrets.
-
 ---
 
 ## QQ Group
