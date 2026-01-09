@@ -18,6 +18,8 @@
 [![Repo: cue-command](https://img.shields.io/badge/repo-cue--command-111827)](https://github.com/nmhjklnm/cue-command)
 ![License](https://img.shields.io/badge/license-Apache--2.0-1E40AF)
 
+[Contributing](./CONTRIBUTING.md) · [Trademark](./TRADEMARK.md)
+
 A command protocol adapter for Cue, compatible with the existing SQLite mailbox (`~/.cue/cue.db`).
 
 Note: image sending is currently unavailable (WIP).

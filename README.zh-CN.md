@@ -18,6 +18,8 @@
 [![Repo: cue-command](https://img.shields.io/badge/repo-cue--command-111827)](https://github.com/nmhjklnm/cue-command)
 ![License](https://img.shields.io/badge/license-Apache--2.0-1E40AF)
 
+[Contributing](./CONTRIBUTING.md) · [Trademark](./TRADEMARK.md)
+
 这是 Cue 的命令行协议适配器，兼容现有的 SQLite mailbox（`~/.cue/cue.db`）。
 
 提示：发送图片功能暂不可用（开发中）。
