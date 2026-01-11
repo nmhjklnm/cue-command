@@ -48,7 +48,7 @@ This file defines the Human Agent Protocol (HAP) rules and the `cueme` command i
 
 ```bash
 npm install -g cue-console
-cue-console dev --port 3000
+cue-console start
 ```
 
 Open `http://localhost:3000`, then in your runtime chat type:
@@ -60,25 +60,25 @@ Open `http://localhost:3000`, then in your runtime chat type:
 ### join
 
 ```bash
-cueme join
+cueme join <agent_runtime>
 ```
 
 ### recall
 
 ```bash
-cueme recall --hints "refactored login"
+cueme recall <hints>
 ```
 
 ### cue
 
 ```bash
-cueme cue --agent_id "tavilron" --prompt "What should I do next?" --timeout 600
+cueme cue <agent_id> -
 ```
 
 ### pause
 
 ```bash
-cueme pause --agent_id "tavilron" --prompt "Waiting..."
+cueme pause <agent_id> -
 ```
 
 All commands output plain text to stdout.

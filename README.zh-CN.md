@@ -48,7 +48,7 @@ npm install -g cueme
 
 ```bash
 npm install -g cue-console
-cue-console dev --port 3000
+cue-console start
 ```
 
 打开 `http://localhost:3000`，然后在你的 runtime 聊天里输入：
@@ -60,25 +60,25 @@ cue-console dev --port 3000
 ### join
 
 ```bash
-cueme join
+cueme join <agent_runtime>
 ```
 
 ### recall
 
 ```bash
-cueme recall --hints "refactored login"
+cueme recall <hints>
 ```
 
 ### cue
 
 ```bash
-cueme cue --agent_id "tavilron" --prompt "What should I do next?" --timeout 600
+cueme cue <agent_id> -
 ```
 
 ### pause
 
 ```bash
-cueme pause --agent_id "tavilron" --prompt "Waiting..."
+cueme pause <agent_id> -
 ```
 
 所有命令都以纯文本输出到 stdout。

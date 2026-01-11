@@ -33,6 +33,16 @@ async function initSchema(db) {
   await run(
     db,
     [
+      'CREATE TABLE IF NOT EXISTS schema_meta (',
+      '  key TEXT PRIMARY KEY,',
+      '  value TEXT NOT NULL',
+      ')',
+    ].join('\n')
+  );
+
+  await run(
+    db,
+    [
       'CREATE TABLE IF NOT EXISTS cue_requests (',
       '  id INTEGER PRIMARY KEY AUTOINCREMENT,',
       '  request_id TEXT UNIQUE,',
@@ -63,6 +73,48 @@ async function initSchema(db) {
   );
 
   await run(db, 'CREATE INDEX IF NOT EXISTS ix_cue_responses_request_id ON cue_responses(request_id)');
+
+  await run(
+    db,
+    [
+      'CREATE TABLE IF NOT EXISTS cue_files (',
+      '  id INTEGER PRIMARY KEY AUTOINCREMENT,',
+      '  sha256 TEXT UNIQUE NOT NULL,',
+      '  file TEXT NOT NULL,',
+      '  mime_type TEXT NOT NULL,',
+      '  size_bytes INTEGER NOT NULL,',
+      '  created_at TEXT',
+      ')',
+    ].join('\n')
+  );
+
+  await run(db, 'CREATE INDEX IF NOT EXISTS ix_cue_files_sha256 ON cue_files(sha256)');
+
+  await run(
+    db,
+    [
+      'CREATE TABLE IF NOT EXISTS cue_response_files (',
+      '  response_id INTEGER NOT NULL,',
+      '  file_id INTEGER NOT NULL,',
+      '  idx INTEGER NOT NULL,',
+      '  PRIMARY KEY (response_id, idx)',
+      ')',
+    ].join('\n')
+  );
+
+  await run(db, 'CREATE INDEX IF NOT EXISTS ix_cue_response_files_response_id ON cue_response_files(response_id)');
+  await run(db, 'CREATE INDEX IF NOT EXISTS ix_cue_response_files_file_id ON cue_response_files(file_id)');
+
+  const versionRow = await get(db, 'SELECT value FROM schema_meta WHERE key = ?', ['schema_version']);
+  if (!versionRow) {
+    const reqCountRow = await get(db, 'SELECT COUNT(*) AS n FROM cue_requests');
+    const respCountRow = await get(db, 'SELECT COUNT(*) AS n FROM cue_responses');
+    const reqCount = reqCountRow ? Number(reqCountRow.n) : 0;
+    const respCount = respCountRow ? Number(respCountRow.n) : 0;
+    if (reqCount === 0 && respCount === 0) {
+      await run(db, 'INSERT INTO schema_meta (key, value) VALUES (?, ?)', ['schema_version', '2']);
+    }
+  }
 }
 
 function nowIso() {

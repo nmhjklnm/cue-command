@@ -1,4 +1,5 @@
 function readAllStdin() {
+  if (process.stdin.isTTY) return Promise.resolve('');
   return new Promise((resolve, reject) => {
     let data = '';
     process.stdin.setEncoding('utf8');
