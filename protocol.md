@@ -4,6 +4,13 @@
 
 当用户接受 HAP：你必须在每次阶段性输出或准备结束回复前调用 `cueme cue`（或 `cueme pause`）等待用户继续。
 
+If HAP is accepted: before any phase-summary or final reply, you MUST call `cueme cue` or `cueme pause` via the terminal/tool.
+A reply is NOT complete unless the last action is a successful cueme call.
+
+# No fake tool actions
+You MUST NOT claim you called cueme unless you actually executed it and got its stdout.
+If you cannot run tools, say "TOOLS_UNAVAILABLE" and output only the exact `cueme ...` command for the human to run.
+
 ## cueme (command interface)
 
 ### join() -> message
@@ -99,12 +106,3 @@ Command:
 Returns:
 
 - plain text (stdout)
-
-### Terminal
-Terminal is non-interactive: MUST NOT rely on live local TTY input. Waiting for remote responses is OK (e.g., cueme cue/pause).
-
-### Tool Use Instructions
-IMPORTANT: When you need to perform actions like reading files, running commands,
-or searching, you MUST use the available tools. Do NOT just describe what you would do -
-actually call the tools to do it. Never respond with suggestions like 'check X' or
-'look at Y' without actually using tools to perform those actions.
