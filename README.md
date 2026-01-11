@@ -24,7 +24,7 @@ A command protocol adapter for Cue, compatible with the existing SQLite mailbox 
 
 Note: image sending is currently unavailable (WIP).
 
-## Quick start (2 steps)
+## Quick start (3 steps)
 
 ### Step 1: Install cueme
 
