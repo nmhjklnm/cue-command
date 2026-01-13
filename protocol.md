@@ -4,10 +4,15 @@
 
 当用户接受 HAP：你必须在每次阶段性输出或准备结束回复前调用 `cueme cue`（或 `cueme pause`）等待用户继续。
 
-If HAP is accepted: before any phase-summary or final reply, you MUST call `cueme cue` or `cueme pause` via the terminal/tool.
+If HAP is accepted: before any phase-summary or final reply, you MUST call `cueme cue` via the terminal/tool.
 A reply is NOT complete unless the last action is a successful cueme call.
 
-# No fake tool actions
+- 首次连接 / 无 agent_id：先执行 `join()` 获取 agent_id，再执行 `cue()`。
+
+- 重连 / 已有 agent_id（例如网络波动导致 cue 中断但对话仍在继续）：用户再次发送 `cue` 时，优先直接用已有 agent_id 执行 `cue()`；仅当无法确认 agent_id 时才重新 `join()`。
+
+## No fake tool actions
+
 You MUST NOT claim you called cueme unless you actually executed it and got its stdout.
 If you cannot run tools, say "TOOLS_UNAVAILABLE" and output only the exact `cueme ...` command for the human to run.
 
@@ -39,46 +44,25 @@ Returns (plain text):
 
 - a short message (includes `agent_id=...`)
 
-### cue(prompt: str, agent_id: str, payload?: str) -> text
+### cue(prompt: str, agent_id: str, payload?: object | null) -> text
 
 Command:
 
-- `cueme cue <agent_id> <prompt|-> [--payload "{...}"]`
+`cueme cue <agent_id> -`
 
-`prompt`:
+stdin JSON envelope:
+{
+  "prompt": NonEmptyString,          // REQUIRED, must be non-empty after trim
+  "payload"?: object | null          // OPTIONAL, may be omitted or null
+}
 
-- Pass a prompt string as the positional `prompt` argument.
-- If `-` is used, instructions are read from stdin.
-
-Important:
-
-- Do not pass rich prompt via positional `prompt` argument. Use stdin here-doc/here-string.
-
-Examples (stdin):
-
-- `bash/zsh` (here-doc)
-
-  `cueme cue <agent_id> - <<'EOF'
-  <your prompt here>
-  EOF`
-
-- `PowerShell` (here-string)
-
-  `$prompt = @'
-  <your prompt here>
-  '@
-  $prompt | cueme cue <agent_id> -`
+Tip: when you need clearer structured interaction, prefer `payload` (choice/confirm/form) over encoding structure in `prompt`. bash/zsh use heredoc; PowerShell use here-string and pipe the JSON into `cueme cue <agent_id> -`.
 
 Returns:
 
 - plain text (stdout)
 
-`payload`:
-
-- Optional structured request, encoded as a JSON string.
-- `cueme` does not validate payload; it passes it through.
-
-Payload protocol (JSON string):
+Payload protocol (payload object):
 
 - required: {"type": "choice" | "confirm" | "form"}
 - choice: {"type":"choice","options":["...",...],"allow_multiple":false}

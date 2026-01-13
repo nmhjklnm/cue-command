@@ -58,9 +58,12 @@ async function main() {
         'Usage:',
         '  cueme join <agent_runtime>',
         '  cueme recall <hints>',
-        '  cueme cue <agent_id> [prompt|-] [--payload "{...}"]',
+        '  cueme cue <agent_id> -',
         '  cueme pause <agent_id> [prompt|-]',
         '  cueme migrate',
+        '',
+        'Cue stdin JSON envelope:',
+        '  {"prompt":"...","payload":{...}}',
         '',
         'Output:',
         '  - join/recall/cue/pause: plain text (stdout)',
@@ -108,16 +111,53 @@ async function main() {
       process.exitCode = 2;
       return;
     }
+
+    if (parsed.payload != null) {
+      process.stderr.write('error: --payload is not supported for cue. Use stdin JSON envelope.\n');
+      process.exitCode = 2;
+      return;
+    }
+
     parsed.agent_id = String(agentId);
 
     const promptPos = pos[1];
-    if (promptPos === '-') {
-      parsed.prompt = await readAllStdin();
-    } else if (promptPos != null) {
-      parsed.prompt = String(promptPos);
-    } else {
-      parsed.prompt = '';
+    if (promptPos !== '-') {
+      process.stderr.write('error: cue requires stdin JSON. Usage: cueme cue <agent_id> -\n');
+      process.exitCode = 2;
+      return;
     }
+
+    if (pos.length > 2) {
+      process.stderr.write('error: cue only accepts <agent_id> - and stdin JSON.\n');
+      process.exitCode = 2;
+      return;
+    }
+
+    const raw = await readAllStdin();
+    let env;
+    try {
+      env = JSON.parse(raw);
+    } catch {
+      process.stderr.write('error: stdin must be valid JSON (envelope: {"prompt": "...", "payload": {...}})\n');
+      process.exitCode = 2;
+      return;
+    }
+
+    if (!env || typeof env !== 'object') {
+      process.stderr.write('error: stdin JSON must be an object\n');
+      process.exitCode = 2;
+      return;
+    }
+
+    const prompt = typeof env.prompt === 'string' ? env.prompt : '';
+    if (!prompt.trim()) {
+      process.stderr.write('error: stdin JSON must include non-empty string field "prompt"\n');
+      process.exitCode = 2;
+      return;
+    }
+
+    parsed.prompt = prompt;
+    parsed.payload = env.payload == null ? null : JSON.stringify(env.payload);
   }
 
   if (sub === 'pause') {
