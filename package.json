@@ -16,12 +16,12 @@
   },
   "type": "commonjs",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
     "prepare": "node -c src/cli.js && node -c src/handler.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0"
+    "better-sqlite3": "^12.6.0"
   }
 }
