@@ -159,6 +159,7 @@ async function main() {
       const { execSync } = require('child_process');
       const os = require('os');
       const path = require('path');
+      const fs = require('fs');
       
       try {
         // Get PowerShell profile path
@@ -176,36 +177,31 @@ async function main() {
           '$OutputEncoding = $utf8NoBom',
         ].join('\n');
         
-        // Create PowerShell script to fix encoding
-        const psScript = [
-          `$profilePath = '${profilePath.replace(/\\/g, '\\')}'`,
-          `$encodingConfig = @'`,
-          encodingConfig,
-          `'@`,
-          '',
-          '$profileDir = Split-Path -Parent $profilePath',
-          'if (!(Test-Path $profileDir)) {',
-          '  New-Item -Path $profileDir -ItemType Directory -Force | Out-Null',
-          '}',
-          '',
-          'if (!(Test-Path $profilePath)) {',
-          '  New-Item -Path $profilePath -ItemType File -Force | Out-Null',
-          '  Write-Host "Created PowerShell profile"',
-          '}',
-          '',
-          '$content = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue',
-          'if ($content -notlike "*utf8NoBom*") {',
-          '  Add-Content -Path $profilePath -Value "`n$encodingConfig"',
-          '  Write-Host "Added UTF-8 encoding to PowerShell profile"',
-          '  Write-Host "Please restart PowerShell for changes to take effect"',
-          '} else {',
-          '  Write-Host "UTF-8 encoding already configured"',
-          '}',
-        ].join('; ');
+        // Ensure profile directory exists
+        const profileDir = path.dirname(profilePath);
+        if (!fs.existsSync(profileDir)) {
+          fs.mkdirSync(profileDir, { recursive: true });
+          process.stdout.write('Created PowerShell profile directory\n');
+        }
         
-        execSync(`powershell -NoProfile -Command "${psScript}"`, {
-          stdio: 'inherit',
-        });
+        // Check if profile exists and if encoding is already configured
+        let needsUpdate = true;
+        if (fs.existsSync(profilePath)) {
+          const content = fs.readFileSync(profilePath, 'utf8');
+          if (content.includes('utf8NoBom')) {
+            process.stdout.write('UTF-8 encoding already configured\n');
+            needsUpdate = false;
+          }
+        } else {
+          process.stdout.write('Created PowerShell profile\n');
+        }
+        
+        // Add encoding configuration if needed
+        if (needsUpdate) {
+          fs.appendFileSync(profilePath, '\n' + encodingConfig + '\n');
+          process.stdout.write('Added UTF-8 encoding to PowerShell profile\n');
+          process.stdout.write('Please restart PowerShell for changes to take effect\n');
+        }
         
       } catch (err) {
         process.stderr.write(`Failed to fix PowerShell encoding: ${err.message}\n`);
