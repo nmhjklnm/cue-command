@@ -150,7 +150,8 @@ async function handleJoin(db, agent_runtime) {
         `agent_runtime=${normalized_runtime}\n\n` +
         'Use this agent_id when calling cue(prompt, agent_id).' +
         ' You must remember this agent_id: when calling cue(), pass it as agent_id so the system knows who you are.' +
-        ' Before ending this session, call cue. Please use cue to provide a final summary, ask a question, or make a request.',
+        ' Before ending this session, call cue. Please use cue to provide a final summary, ask a question, or make a request.' +
+        ' IMPORTANT: Remember the agent_id, but do NOT store it in any memory module.',
     },
   };
 }
