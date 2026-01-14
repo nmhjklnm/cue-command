@@ -1,7 +1,4 @@
 const crypto = require('crypto');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
 const { sleep } = require('./io');
 const { generateName } = require('./naming');
 const { openDb, initSchema, run, get, nowIso, getDbPath } = require('./db');
@@ -99,9 +96,48 @@ function normalizeAgentRuntime(raw) {
   return s ? s : 'unknown';
 }
 
+function detectAgentTerminal() {
+  const platform = process.platform;
+  if (platform === 'win32') {
+    const comspec = (process.env.ComSpec ?? '').toString().toLowerCase();
+    const psModulePath = (process.env.PSModulePath ?? '').toString();
+    const shell = (process.env.SHELL ?? '').toString().toLowerCase();
+    const nuVersion = (process.env.NU_VERSION ?? '').toString();
+    const msystem = (process.env.MSYSTEM ?? '').toString().toLowerCase();
+
+    if (
+      shell.includes('powershell') ||
+      shell.includes('pwsh') ||
+      comspec.includes('powershell') ||
+      comspec.includes('pwsh') ||
+      psModulePath
+    ) {
+      return 'powershell';
+    }
+
+    if (nuVersion || shell.includes('nushell') || shell.endsWith('/nu') || shell === 'nu') return 'nushell';
+
+    if (shell.endsWith('/bash') || shell === 'bash' || msystem) return 'bash';
+
+    if (comspec.endsWith('cmd.exe') || comspec.includes('\\cmd.exe') || comspec.includes('/cmd.exe')) return 'cmd';
+    return 'unknown';
+  }
+
+  const isWsl = Boolean(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP);
+
+  const shellPath = (process.env.SHELL ?? '').toString().toLowerCase();
+  if (shellPath.endsWith('/zsh') || shellPath === 'zsh') return 'zsh';
+  if (shellPath.endsWith('/bash') || shellPath === 'bash') return 'bash';
+  if (shellPath.endsWith('/fish') || shellPath === 'fish') return 'fish';
+  if (shellPath.endsWith('/nu') || shellPath === 'nu' || shellPath.includes('nushell')) return 'nushell';
+  if (isWsl && (shellPath.endsWith('/bash') || shellPath === 'bash' || !shellPath)) return 'bash';
+  return 'unknown';
+}
+
 async function handleJoin(db, agent_runtime) {
   const agent_id = generateName();
   const project_dir = process.cwd();
+  const agent_terminal = detectAgentTerminal();
   const normalized_runtime = normalizeAgentRuntime(agent_runtime);
   return {
     ok: true,
@@ -110,6 +146,7 @@ async function handleJoin(db, agent_runtime) {
       message:
         `agent_id=${agent_id}\n` +
         `project_dir=${project_dir}\n` +
+        `agent_terminal=${agent_terminal}\n` +
         `agent_runtime=${normalized_runtime}\n\n` +
         'Use this agent_id when calling cue(prompt, agent_id).' +
         ' You must remember this agent_id: when calling cue(), pass it as agent_id so the system knows who you are.' +
@@ -314,196 +351,10 @@ async function handlePause(db, { agent_id, prompt }) {
   });
 }
 
-async function ensureSchemaV2OrGuideMigrate(db) {
-  const versionRow = await get(db, 'SELECT value FROM schema_meta WHERE key = ?', ['schema_version']);
-  const version = versionRow && versionRow.value != null ? String(versionRow.value) : '';
-  if (version === '2') return { ok: true };
-
-  const reqCountRow = await get(db, 'SELECT COUNT(*) AS n FROM cue_requests');
-  const respCountRow = await get(db, 'SELECT COUNT(*) AS n FROM cue_responses');
-  const reqCount = reqCountRow ? Number(reqCountRow.n) : 0;
-  const respCount = respCountRow ? Number(respCountRow.n) : 0;
-
-  if (reqCount === 0 && respCount === 0) {
-    return { ok: true };
-  }
-
-  return {
-    ok: false,
-    error:
-      'Database schema is outdated (pre-file storage). Please migrate: cueme migrate\n' +
-      '数据库结构已过期（旧的 base64 存储）。请先执行：cueme migrate',
-  };
-}
-
-function filesRootDir() {
-  return path.join(os.homedir(), '.cue', 'files');
-}
-
-function extFromMime(mime) {
-  const m = (mime || '').toLowerCase().trim();
-  if (m === 'image/png') return 'png';
-  if (m === 'image/jpeg' || m === 'image/jpg') return 'jpg';
-  if (m === 'image/webp') return 'webp';
-  if (m === 'image/gif') return 'gif';
-  return 'bin';
-}
-
-function safeParseJson(s) {
-  try {
-    return { ok: true, value: JSON.parse(s) };
-  } catch (e) {
-    return { ok: false, error: e };
-  }
-}
-
-function decodeBase64(b64) {
-  try {
-    return { ok: true, value: Buffer.from(String(b64 || ''), 'base64') };
-  } catch (e) {
-    return { ok: false, error: e };
-  }
-}
-
-function normalizeUserResponseForV2(parsed) {
-  const obj = parsed && typeof parsed === 'object' ? parsed : {};
-  const text = typeof obj.text === 'string' ? obj.text : '';
-  const mentions = Array.isArray(obj.mentions) ? obj.mentions : undefined;
-  return mentions ? { text, mentions } : { text };
-}
-
-async function handleMigrate(db) {
-  const root = filesRootDir();
-  fs.mkdirSync(root, { recursive: true });
-
-  const versionRow = await get(db, 'SELECT value FROM schema_meta WHERE key = ?', ['schema_version']);
-  const version = versionRow && versionRow.value != null ? String(versionRow.value) : '';
-  if (version === '2') {
-    return { ok: true, data: { message: 'Already migrated (schema_version=2).' } };
-  }
-
-  const rows = db
-    .prepare('SELECT id, request_id, response_json, cancelled FROM cue_responses ORDER BY id ASC')
-    .all();
-
-  const total = Array.isArray(rows) ? rows.length : 0;
-  let processed = 0;
-  let migrated = 0;
-  let deleted = 0;
-
-  const deleteResponseStmt = db.prepare('DELETE FROM cue_responses WHERE id = ?');
-  const cancelRequestStmt = db.prepare('UPDATE cue_requests SET status = ? WHERE request_id = ?');
-  const upsertFileStmt = db.prepare(
-    [
-      'INSERT INTO cue_files (sha256, file, mime_type, size_bytes, created_at)',
-      'VALUES (@sha256, @file, @mime_type, @size_bytes, @created_at)',
-      'ON CONFLICT(sha256) DO UPDATE SET',
-      '  file = excluded.file,',
-      '  mime_type = excluded.mime_type,',
-      '  size_bytes = excluded.size_bytes',
-    ].join('\n')
-  );
-  const getFileIdStmt = db.prepare('SELECT id FROM cue_files WHERE sha256 = ?');
-  const deleteResponseFilesStmt = db.prepare('DELETE FROM cue_response_files WHERE response_id = ?');
-  const insertRespFileStmt = db.prepare(
-    'INSERT INTO cue_response_files (response_id, file_id, idx) VALUES (?, ?, ?)'
-  );
-  const updateResponseJsonStmt = db.prepare('UPDATE cue_responses SET response_json = ? WHERE id = ?');
-
-  const tx = db.transaction((row) => {
-    const parsed = safeParseJson(row.response_json);
-    if (!parsed.ok) {
-      deleteResponseStmt.run(row.id);
-      cancelRequestStmt.run('CANCELLED', row.request_id);
-      return { migrated: false, deleted: true };
-    }
-
-    const images = Array.isArray(parsed.value.images) ? parsed.value.images : [];
-
-    deleteResponseFilesStmt.run(row.id);
-
-    for (let i = 0; i < images.length; i += 1) {
-      const img = images[i];
-      const mime = img && typeof img === 'object' ? String(img.mime_type || '') : '';
-      const b64 = img && typeof img === 'object' ? img.base64_data : '';
-
-      const decoded = decodeBase64(b64);
-      if (!decoded.ok) {
-        deleteResponseStmt.run(row.id);
-        cancelRequestStmt.run('CANCELLED', row.request_id);
-        return { migrated: false, deleted: true };
-      }
-
-      const buf = decoded.value;
-      if (!buf || buf.length === 0) {
-        deleteResponseStmt.run(row.id);
-        cancelRequestStmt.run('CANCELLED', row.request_id);
-        return { migrated: false, deleted: true };
-      }
-
-      const sha256 = crypto.createHash('sha256').update(buf).digest('hex');
-      const ext = extFromMime(mime);
-      const rel = path.join('files', `${sha256}.${ext}`);
-      const abs = path.join(os.homedir(), '.cue', rel);
-
-      if (!fs.existsSync(abs)) {
-        fs.mkdirSync(path.dirname(abs), { recursive: true });
-        fs.writeFileSync(abs, buf);
-      }
-
-      const created_at = nowIso();
-      upsertFileStmt.run({
-        sha256,
-        file: rel,
-        mime_type: mime || 'application/octet-stream',
-        size_bytes: buf.length,
-        created_at,
-      });
-      const fileRow = getFileIdStmt.get(sha256);
-      const fileId = fileRow ? Number(fileRow.id) : null;
-      if (!fileId) {
-        deleteResponseStmt.run(row.id);
-        cancelRequestStmt.run('CANCELLED', row.request_id);
-        return { migrated: false, deleted: true };
-      }
-
-      insertRespFileStmt.run(row.id, fileId, i);
-    }
-
-    const v2 = normalizeUserResponseForV2(parsed.value);
-    updateResponseJsonStmt.run(JSON.stringify(v2), row.id);
-    return { migrated: true, deleted: false };
-  });
-
-  for (const row of rows) {
-    processed += 1;
-    const res = tx(row);
-    if (res.deleted) deleted += 1;
-    if (res.migrated) migrated += 1;
-    if (processed % 50 === 0 || processed === total) {
-      process.stderr.write(`migrate: ${processed}/${total} (migrated=${migrated}, deleted=${deleted})\n`);
-    }
-  }
-
-  await run(db, 'INSERT OR REPLACE INTO schema_meta (key, value) VALUES (?, ?)', ['schema_version', '2']);
-
-  return {
-    ok: true,
-    data: {
-      message: `Migrate completed. total=${total} migrated=${migrated} deleted=${deleted}`,
-    },
-  };
-}
-
 async function handleCommand({ subcommand, args }) {
   const { db, dbPath } = openDb();
   try {
     await initSchema(db);
-
-    if (subcommand !== 'join' && subcommand !== 'migrate') {
-      const schemaCheck = await ensureSchemaV2OrGuideMigrate(db);
-      if (!schemaCheck.ok) return { ok: false, error: schemaCheck.error, data: { db_path: dbPath } };
-    }
 
     if (subcommand === 'join') return await handleJoin(db, args.agent_runtime);
 
@@ -524,10 +375,6 @@ async function handleCommand({ subcommand, args }) {
       const agent_id = (args.agent_id ?? '').toString();
       const prompt = args.prompt == null ? null : args.prompt.toString();
       return await handlePause(db, { agent_id, prompt });
-    }
-
-    if (subcommand === 'migrate') {
-      return await handleMigrate(db);
     }
 
     return { ok: false, error: `unknown subcommand: ${subcommand}`, data: { db_path: dbPath } };

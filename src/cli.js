@@ -1,5 +1,25 @@
 const { readAllStdin } = require('./io');
 const { handleCommand } = require('./handler');
+const { parseTagBlocksEnvelope } = require('./envelope');
+const { protoApply, protoInit, protoLs, protoPath, protoRender } = require('./proto');
+const pkg = require('../package.json');
+const fs = require('fs');
+const path = require('path');
+
+async function parseStdinTagBlocksOrExit({ parsed, allow_payload }) {
+  const raw = await readAllStdin();
+  const env = parseTagBlocksEnvelope(raw, { allow_payload });
+  if (!env.ok) {
+    process.stderr.write(env.error);
+    process.exitCode = 2;
+    return false;
+  }
+  parsed.prompt = env.prompt;
+  if (allow_payload !== false) {
+    parsed.payload = env.payload == null ? null : JSON.stringify(env.payload);
+  }
+  return true;
+}
 
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -46,6 +66,25 @@ function extractTextFromResult(result) {
 }
 
 async function main() {
+  const first = process.argv[2];
+  if (first === '-v' || first === '--version') {
+    process.stdout.write(String(pkg.version || '') + '\n');
+    return;
+  }
+
+  if (first === '-p' || first === '--protocol') {
+    const protocolPath = path.join(__dirname, '..', 'protocol.md');
+    try {
+      const content = fs.readFileSync(protocolPath, 'utf8');
+      process.stdout.write(String(content || ''));
+      if (!String(content || '').endsWith('\n')) process.stdout.write('\n');
+    } catch {
+      process.stderr.write('error: failed to read protocol.md\n');
+      process.exitCode = 2;
+    }
+    return;
+  }
+
   const parsed = parseArgs(process.argv);
   const sub = parsed._[0];
   const pos = parsed._.slice(1);
@@ -56,14 +95,30 @@ async function main() {
         'cueme',
         '',
         'Usage:',
+        '  cueme -v|--version',
+        '  cueme -p|--protocol',
+        '  cueme proto <agent>',
+        '  cueme proto apply <agent>',
+        '  cueme proto init',
+        '  cueme proto ls',
+        '  cueme proto path <agent>',
         '  cueme join <agent_runtime>',
         '  cueme recall <hints>',
         '  cueme cue <agent_id> -',
         '  cueme pause <agent_id> [prompt|-]',
-        '  cueme migrate',
         '',
-        'Cue stdin JSON envelope:',
-        '  {"prompt":"...","payload":{...}}',
+        'Cue stdin envelope (tag blocks; tags must be alone on their line):',
+        '  <cueme_prompt>',
+        '  ...raw prompt text...',
+        '  </cueme_prompt>',
+        '  <cueme_payload>',
+        '  ...JSON object or null...',
+        '  </cueme_payload>',
+        '',
+        'Pause stdin envelope (tag blocks; tags must be alone on their line):',
+        '  <cueme_prompt>',
+        '  ...raw prompt text...',
+        '  </cueme_prompt>',
         '',
         'Output:',
         '  - join/recall/cue/pause: plain text (stdout)',
@@ -104,6 +159,59 @@ async function main() {
     parsed.hints = String(hints);
   }
 
+  if (sub === 'proto') {
+    const action = pos[0];
+    try {
+      if (!action) {
+        process.stderr.write('error: missing <agent>\n');
+        process.exitCode = 2;
+        return;
+      }
+
+      if (action === 'ls') {
+        process.stdout.write(protoLs());
+        return;
+      }
+
+      if (action === 'init') {
+        process.stdout.write(protoInit() + '\n');
+        return;
+      }
+
+      if (action === 'apply') {
+        const agent = pos[1];
+        if (!agent) {
+          process.stderr.write('error: missing <agent>\n');
+          process.exitCode = 2;
+          return;
+        }
+        process.stdout.write(protoApply(String(agent)) + '\n');
+        return;
+      }
+
+      if (action === 'path') {
+        const agent = pos[1];
+        if (!agent) {
+          process.stderr.write('error: missing <agent>\n');
+          process.exitCode = 2;
+          return;
+        }
+        process.stdout.write(protoPath(String(agent)) + '\n');
+        return;
+      }
+
+      const agent = action;
+      const rendered = protoRender(String(agent));
+      process.stdout.write(rendered);
+      if (!String(rendered || '').endsWith('\n')) process.stdout.write('\n');
+      return;
+    } catch (err) {
+      process.stderr.write((err && err.message ? err.message : 'error: proto failed') + '\n');
+      process.exitCode = 2;
+      return;
+    }
+  }
+
   if (sub === 'cue') {
     const agentId = pos[0];
     if (!agentId) {
@@ -113,7 +221,7 @@ async function main() {
     }
 
     if (parsed.payload != null) {
-      process.stderr.write('error: --payload is not supported for cue. Use stdin JSON envelope.\n');
+      process.stderr.write('error: --payload is not supported for cue. Use stdin tag-blocks envelope.\n');
       process.exitCode = 2;
       return;
     }
@@ -122,42 +230,19 @@ async function main() {
 
     const promptPos = pos[1];
     if (promptPos !== '-') {
-      process.stderr.write('error: cue requires stdin JSON. Usage: cueme cue <agent_id> -\n');
+      process.stderr.write('error: cue requires stdin tag-blocks. Usage: cueme cue <agent_id> -\n');
       process.exitCode = 2;
       return;
     }
 
     if (pos.length > 2) {
-      process.stderr.write('error: cue only accepts <agent_id> - and stdin JSON.\n');
+      process.stderr.write('error: cue only accepts <agent_id> - and stdin tag-blocks envelope.\n');
       process.exitCode = 2;
       return;
     }
 
-    const raw = await readAllStdin();
-    let env;
-    try {
-      env = JSON.parse(raw);
-    } catch {
-      process.stderr.write('error: stdin must be valid JSON (envelope: {"prompt": "...", "payload": {...}})\n');
-      process.exitCode = 2;
-      return;
-    }
-
-    if (!env || typeof env !== 'object') {
-      process.stderr.write('error: stdin JSON must be an object\n');
-      process.exitCode = 2;
-      return;
-    }
-
-    const prompt = typeof env.prompt === 'string' ? env.prompt : '';
-    if (!prompt.trim()) {
-      process.stderr.write('error: stdin JSON must include non-empty string field "prompt"\n');
-      process.exitCode = 2;
-      return;
-    }
-
-    parsed.prompt = prompt;
-    parsed.payload = env.payload == null ? null : JSON.stringify(env.payload);
+    const ok = await parseStdinTagBlocksOrExit({ parsed, allow_payload: true });
+    if (!ok) return;
   }
 
   if (sub === 'pause') {
@@ -167,14 +252,25 @@ async function main() {
       process.exitCode = 2;
       return;
     }
+
+    if (parsed.payload != null) {
+      process.stderr.write('error: --payload is not supported for pause. Use tag-blocks stdin or positional prompt.\n');
+      process.exitCode = 2;
+      return;
+    }
+
     parsed.agent_id = String(agentId);
 
     const promptPos = pos[1];
     if (promptPos === '-') {
-      const stdinPrompt = await readAllStdin();
-      if (stdinPrompt && stdinPrompt.trim().length > 0) {
-        parsed.prompt = stdinPrompt;
+      if (pos.length > 2) {
+        process.stderr.write('error: pause only accepts <agent_id> [prompt|-] (tag-blocks stdin when "-" is used).\n');
+        process.exitCode = 2;
+        return;
       }
+
+      const ok = await parseStdinTagBlocksOrExit({ parsed, allow_payload: false });
+      if (!ok) return;
     } else if (promptPos != null) {
       parsed.prompt = String(promptPos);
     }

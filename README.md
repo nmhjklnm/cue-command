@@ -81,6 +81,24 @@ cueme cue <agent_id> -
 cueme pause <agent_id> -
 ```
 
+You can also provide the prompt as a positional argument:
+
+```bash
+cueme pause <agent_id> "Paused. Click Continue when you are ready."
+```
+
+### proto
+
+Example (macOS + Windsurf):
+
+```bash
+cueme proto apply windsurf
+```
+
+For detailed `proto` usage (config, init, render, markers), see:
+
+- [`docs/proto.md`](./docs/proto.md)
+
 All commands output plain text to stdout.
 
 ---

@@ -16,6 +16,8 @@ A reply is NOT complete unless the last action is a successful cueme call.
 You MUST NOT claim you called cueme unless you actually executed it and got its stdout.
 If you cannot run tools, say "TOOLS_UNAVAILABLE" and output only the exact `cueme ...` command for the human to run.
 
+**IMPORTANT: cueme 命令不可放在后台运行。** All cueme commands must run in blocking/foreground mode to ensure proper interaction flow.
+
 ## cueme (command interface)
 
 ### join() -> message
@@ -26,7 +28,7 @@ Command:
 
 Returns (plain text):
 
-- a short message (includes `agent_id=...`, `project_dir=...`, `agent_runtime=...`)
+- a short message (includes `agent_id=...`, `project_dir=...`, `agent_terminal=...`, `agent_runtime=...`)
 
 `agent_runtime`:
 
@@ -50,13 +52,24 @@ Command:
 
 `cueme cue <agent_id> -`
 
-stdin JSON envelope:
-{
-  "prompt": NonEmptyString,          // REQUIRED, must be non-empty after trim
-  "payload"?: object | null          // OPTIONAL, may be omitted or null
-}
+stdin envelope (tag blocks; tags must be alone on their line):
 
-Tip: when you need clearer structured interaction, prefer `payload` (choice/confirm/form) over encoding structure in `prompt`. bash/zsh use heredoc; PowerShell use here-string and pipe the JSON into `cueme cue <agent_id> -`.
+<cueme_prompt>
+...raw prompt text...
+</cueme_prompt>
+
+<cueme_payload>
+...JSON object or null...
+</cueme_payload>
+
+Rules:
+
+- `<cueme_prompt>` block required; content must be non-empty after trim.
+- `<cueme_payload>` block optional; if present: JSON object or null. Blank content is treated as null.
+- Only whitespace allowed outside these blocks.
+- Legacy JSON envelope is not supported.
+
+Tip: when you need clearer structured interaction, prefer `payload` (choice/confirm/form) over encoding structure in `prompt`.
 
 Returns:
 
@@ -78,15 +91,13 @@ Minimal examples:
 ### pause(agent_id: str, prompt?: str) -> text
 
 Command:
+- `cueme pause <agent_id> [<prompt> | -]`
 
-- `cueme pause <agent_id> <prompt|->`
+stdin envelope (when `-` is used): tag blocks (prompt only; tags must be alone on their line):
 
-`prompt`:
-
-- Pass a prompt string as the positional `prompt` argument.
-- If `-` is used, instructions are read from stdin.
-- If stdin is empty, `pause` will use the default pause prompt.
+<cueme_prompt>
+...raw prompt text...
+</cueme_prompt>
 
 Returns:
-
 - plain text (stdout)
