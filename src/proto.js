@@ -51,22 +51,22 @@ function detectVscodeCandidates({ platform }) {
   const cwd = process.cwd();
 
   // Workspace-level (if you want repo-local rules)
-  candidates.push(path.join(cwd, '.vscode', 'prompts', 'human_proto.md'));
+  candidates.push(path.join(cwd, '.vscode', 'prompts', 'cueme_proto.instructions.md'));
 
   // User-level prompts
   const home = os.homedir();
   if (platform === 'macos') {
     candidates.push(
-      path.join(home, 'Library', 'Application Support', 'Code', 'User', 'prompts', 'human_proto.md')
+      path.join(home, 'Library', 'Application Support', 'Code', 'User', 'prompts', 'cueme_proto.instructions.md')
     );
   }
   if (platform === 'linux') {
     // User supplied: ~/.config/Code/User/prompts/
-    candidates.push(path.join(home, '.config', 'Code', 'User', 'prompts', 'human_proto.md'));
+    candidates.push(path.join(home, '.config', 'Code', 'User', 'prompts', 'cueme_proto.instructions.md'));
   }
   if (platform === 'windows') {
     const appData = process.env.APPDATA;
-    if (appData) candidates.push(path.join(appData, 'Code', 'User', 'prompts', 'human_proto.md'));
+    if (appData) candidates.push(path.join(appData, 'Code', 'User', 'prompts', 'cueme_proto.instructions.md'));
   }
 
   return candidates;
@@ -113,12 +113,12 @@ function defaultPathMapTemplate() {
     'Code',
     'User',
     'prompts',
-    'human_proto.md'
+    'cueme_proto.instructions.md'
   );
   out['windows.vscode'] = appData
-    ? path.join(appData, 'Code', 'User', 'prompts', 'human_proto.md')
-    : path.join(userProfile, 'AppData', 'Roaming', 'Code', 'User', 'prompts', 'human_proto.md');
-  out['linux.vscode'] = path.join(home, '.config', 'Code', 'User', 'prompts', 'human_proto.md');
+    ? path.join(appData, 'Code', 'User', 'prompts', 'cueme_proto.instructions.md')
+    : path.join(userProfile, 'AppData', 'Roaming', 'Code', 'User', 'prompts', 'cueme_proto.instructions.md');
+  out['linux.vscode'] = path.join(home, '.config', 'Code', 'User', 'prompts', 'cueme_proto.instructions.md');
 
   // Windsurf
   out['macos.windsurf'] = path.join(home, '.codeium', 'windsurf', 'memories', 'global_rules.md');
@@ -256,7 +256,7 @@ function buildFinalProto({ cfg, agent }) {
     throw new Error('error: cannot read protocol.md');
   }
 
-  return `${prefix}\n\n${protocol}`;
+  return { prefix, protocol };
 }
 
 function resolveTargetPath({ cfg, agent }) {
@@ -271,15 +271,22 @@ function resolveTargetPath({ cfg, agent }) {
   return path.isAbsolute(expanded) ? expanded : path.resolve(process.cwd(), expanded);
 }
 
-function makeManagedBlock({ finalProto, eol }) {
-  const normalized = String(finalProto || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const protoLines = normalized.split('\n');
-  return [BEGIN_MARKER, ...protoLines, END_MARKER].join(eol) + eol;
+function makeManagedBlock({ prefix, protocol, eol }) {
+  const normalizedProto = String(protocol || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const protoLines = normalizedProto.split('\n');
+  const managedBlock = [BEGIN_MARKER, ...protoLines, END_MARKER].join(eol) + eol;
+  
+  if (prefix && prefix.trim()) {
+    const normalizedPrefix = String(prefix).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    return normalizedPrefix + eol + eol + managedBlock;
+  }
+  
+  return managedBlock;
 }
 
-function applyManagedBlock({ existing, finalProto }) {
+function applyManagedBlock({ existing, prefix, protocol }) {
   const eol = detectEol(existing);
-  const block = makeManagedBlock({ finalProto, eol });
+  const block = makeManagedBlock({ prefix, protocol, eol });
 
   const beginMatch = existing.match(BEGIN_MARKER_RE);
   const endMatch = existing.match(END_MARKER_RE);
@@ -333,7 +340,7 @@ function protoLs() {
 function protoApply(agent) {
   const cfg = readConfigOrThrow({ auto_init: true });
   const targetPath = resolveTargetPath({ cfg, agent });
-  const finalProto = buildFinalProto({ cfg, agent });
+  const { prefix, protocol } = buildFinalProto({ cfg, agent });
 
   let existing = '';
   let exists = false;
@@ -346,13 +353,13 @@ function protoApply(agent) {
   }
 
   const eol = exists ? detectEol(existing) : os.EOL;
-  const managedBlock = makeManagedBlock({ finalProto, eol });
+  const managedBlock = makeManagedBlock({ prefix, protocol, eol });
 
   let out;
   if (!exists) {
     out = managedBlock;
   } else {
-    out = applyManagedBlock({ existing, finalProto });
+    out = applyManagedBlock({ existing, prefix, protocol });
   }
 
   ensureDirForFile(targetPath);
