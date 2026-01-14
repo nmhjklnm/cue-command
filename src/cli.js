@@ -102,6 +102,7 @@ async function main() {
         '  cueme proto init',
         '  cueme proto ls',
         '  cueme proto path <agent>',
+        '  cueme fix <issue>',
         '  cueme join <agent_runtime>',
         '  cueme cue <agent_id> -',
         '  cueme pause <agent_id> [prompt|-]',
@@ -134,6 +135,88 @@ async function main() {
 
   if (parsed.agent_id != null || parsed.prompt != null) {
     process.stderr.write('error: --agent_id/--prompt flags are not supported; use positional args\n');
+    process.exitCode = 2;
+    return;
+  }
+
+  if (sub === 'fix') {
+    const issue = pos[0];
+    if (!issue) {
+      process.stderr.write('error: missing <issue>\n');
+      process.stderr.write('Available fixes:\n');
+      process.stderr.write('  powershell_utf-8  Fix PowerShell encoding for Chinese characters\n');
+      process.exitCode = 2;
+      return;
+    }
+    
+    if (issue === 'powershell_utf-8') {
+      if (process.platform !== 'win32') {
+        process.stderr.write('This fix is only for Windows PowerShell\n');
+        process.exitCode = 1;
+        return;
+      }
+      
+      const { execSync } = require('child_process');
+      const os = require('os');
+      const path = require('path');
+      
+      try {
+        // Get PowerShell profile path
+        const profilePath = path.join(
+          os.homedir(),
+          'Documents',
+          'WindowsPowerShell',
+          'Microsoft.PowerShell_profile.ps1'
+        );
+        
+        const encodingConfig = [
+          '$utf8NoBom = New-Object System.Text.UTF8Encoding($false)',
+          '[Console]::InputEncoding  = $utf8NoBom',
+          '[Console]::OutputEncoding = $utf8NoBom',
+          '$OutputEncoding = $utf8NoBom',
+        ].join('\n');
+        
+        // Create PowerShell script to fix encoding
+        const psScript = [
+          `$profilePath = '${profilePath.replace(/\\/g, '\\')}'`,
+          `$encodingConfig = @'`,
+          encodingConfig,
+          `'@`,
+          '',
+          '$profileDir = Split-Path -Parent $profilePath',
+          'if (!(Test-Path $profileDir)) {',
+          '  New-Item -Path $profileDir -ItemType Directory -Force | Out-Null',
+          '}',
+          '',
+          'if (!(Test-Path $profilePath)) {',
+          '  New-Item -Path $profilePath -ItemType File -Force | Out-Null',
+          '  Write-Host "Created PowerShell profile"',
+          '}',
+          '',
+          '$content = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue',
+          'if ($content -notlike "*utf8NoBom*") {',
+          '  Add-Content -Path $profilePath -Value "`n$encodingConfig"',
+          '  Write-Host "Added UTF-8 encoding to PowerShell profile"',
+          '  Write-Host "Please restart PowerShell for changes to take effect"',
+          '} else {',
+          '  Write-Host "UTF-8 encoding already configured"',
+          '}',
+        ].join('; ');
+        
+        execSync(`powershell -NoProfile -Command "${psScript}"`, {
+          stdio: 'inherit',
+        });
+        
+      } catch (err) {
+        process.stderr.write(`Failed to fix PowerShell encoding: ${err.message}\n`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+    
+    process.stderr.write(`error: unknown issue: ${issue}\n`);
+    process.stderr.write('Available fixes:\n');
+    process.stderr.write('  powershell_utf-8  Fix PowerShell encoding for Chinese characters\n');
     process.exitCode = 2;
     return;
   }

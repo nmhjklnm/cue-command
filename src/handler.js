@@ -139,20 +139,33 @@ async function handleJoin(db, agent_runtime) {
   const project_dir = process.cwd();
   const agent_terminal = detectAgentTerminal();
   const normalized_runtime = normalizeAgentRuntime(agent_runtime);
+  
+  let message =
+    `agent_id=${agent_id}\n` +
+    `project_dir=${project_dir}\n` +
+    `agent_terminal=${agent_terminal}\n` +
+    `agent_runtime=${normalized_runtime}\n\n`;
+  
+  // Windows PowerShell encoding fix reminder
+  if (process.platform === 'win32') {
+    message +=
+      'Windows detected. To fix encoding issues with Chinese characters:\n' +
+      '1. Run: cueme fix powershell_utf-8\n' +
+      '2. Restart your terminal\n\n';
+  }
+  
+  message +=
+    'Use this agent_id when calling: cueme cue <agent_id> -\n' +
+    'Then provide stdin with tag-block envelope (stdin MUST NOT be empty):\n' +
+    '<cueme_prompt>\n...\n</cueme_prompt>\n' +
+    '<cueme_payload>\n...\n</cueme_payload>\n\n' +
+    'Remember this agent_id (but do NOT store it in any memory module). Before ending this session, call cue to provide a final summary, ask a question, or make a request.';
+  
   return {
     ok: true,
     data: {
       agent_id,
-      message:
-        `agent_id=${agent_id}\n` +
-        `project_dir=${project_dir}\n` +
-        `agent_terminal=${agent_terminal}\n` +
-        `agent_runtime=${normalized_runtime}\n\n` +
-        'Use this agent_id when calling: cueme cue <agent_id> -\n' +
-        'Then provide stdin with tag-block envelope (stdin MUST NOT be empty):\n' +
-        '<cueme_prompt>\n...\n</cueme_prompt>\n' +
-        '<cueme_payload>\n...\n</cueme_payload>\n\n' +
-        'Remember this agent_id (but do NOT store it in any memory module). Before ending this session, call cue to provide a final summary, ask a question, or make a request.',
+      message,
     },
   };
 }
