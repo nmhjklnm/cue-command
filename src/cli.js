@@ -103,7 +103,6 @@ async function main() {
         '  cueme proto ls',
         '  cueme proto path <agent>',
         '  cueme join <agent_runtime>',
-        '  cueme recall <hints>',
         '  cueme cue <agent_id> -',
         '  cueme pause <agent_id> [prompt|-]',
         '',
@@ -121,7 +120,7 @@ async function main() {
         '  </cueme_prompt>',
         '',
         'Output:',
-        '  - join/recall/cue/pause: plain text (stdout)',
+        '  - join/cue/pause: plain text (stdout)',
       ].join('\n') + '\n'
     );
     return;
@@ -133,8 +132,8 @@ async function main() {
     return;
   }
 
-  if (parsed.agent_id != null || parsed.prompt != null || parsed.hints != null) {
-    process.stderr.write('error: --agent_id/--prompt/--hints flags are not supported; use positional args\n');
+  if (parsed.agent_id != null || parsed.prompt != null) {
+    process.stderr.write('error: --agent_id/--prompt flags are not supported; use positional args\n');
     process.exitCode = 2;
     return;
   }
@@ -147,16 +146,6 @@ async function main() {
       return;
     }
     parsed.agent_runtime = String(agentRuntime);
-  }
-
-  if (sub === 'recall') {
-    const hints = pos[0];
-    if (!hints) {
-      process.stderr.write('error: missing <hints>\n');
-      process.exitCode = 2;
-      return;
-    }
-    parsed.hints = String(hints);
   }
 
   if (sub === 'proto') {

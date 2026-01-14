@@ -3,7 +3,10 @@ function parseTagBlocksEnvelope(raw, opts = {}) {
   const text = String(raw == null ? '' : raw);
   const trimmed = text.trim();
   if (!trimmed) {
-    return { ok: false, error: 'error: stdin must use tag-blocks envelope\n' };
+    // Fallback: use default prompt based on command type
+    // allowPayload === true means cue command, false means pause command
+    const defaultPrompt = allowPayload ? 'hi' : 'pause';
+    return { ok: true, prompt: defaultPrompt, payload: null };
   }
 
   if (trimmed.startsWith('{')) {

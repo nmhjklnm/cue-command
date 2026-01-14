@@ -148,40 +148,11 @@ async function handleJoin(db, agent_runtime) {
         `project_dir=${project_dir}\n` +
         `agent_terminal=${agent_terminal}\n` +
         `agent_runtime=${normalized_runtime}\n\n` +
-        'Use this agent_id when calling cue(prompt, agent_id).' +
-        ' You must remember this agent_id: when calling cue(), pass it as agent_id so the system knows who you are.' +
-        ' Before ending this session, call cue. Please use cue to provide a final summary, ask a question, or make a request.' +
-        ' IMPORTANT: Remember the agent_id, but do NOT store it in any memory module.',
-    },
-  };
-}
-
-async function handleRecall(db, hints) {
-  const row = await get(
-    db,
-    "SELECT agent_id FROM cue_requests WHERE agent_id != '' AND prompt LIKE ? ORDER BY created_at DESC LIMIT 1",
-    [`%${hints}%`]
-  );
-
-  if (row && row.agent_id) {
-    return {
-      ok: true,
-      data: {
-        agent_id: row.agent_id,
-        message: `agent_id=${row.agent_id}\n\nUse this agent_id when calling cue(prompt, agent_id).`,
-      },
-    };
-  }
-
-  const agent_id = generateName();
-  return {
-    ok: true,
-    data: {
-      agent_id,
-      message:
-        'No matching record found; generated a new agent_id.\n\n' +
-        `agent_id=${agent_id}\n\n` +
-        'Use this agent_id when calling cue(prompt, agent_id).',
+        'Use this agent_id when calling: cueme cue <agent_id> -\n' +
+        'Then provide stdin with tag-block envelope (stdin MUST NOT be empty):\n' +
+        '<cueme_prompt>\n...\n</cueme_prompt>\n' +
+        '<cueme_payload>\n...\n</cueme_payload>\n\n' +
+        'Remember this agent_id (but do NOT store it in any memory module). Before ending this session, call cue to provide a final summary, ask a question, or make a request.',
     },
   };
 }
@@ -358,11 +329,6 @@ async function handleCommand({ subcommand, args }) {
     await initSchema(db);
 
     if (subcommand === 'join') return await handleJoin(db, args.agent_runtime);
-
-    if (subcommand === 'recall') {
-      const hints = (args.hints ?? '').toString();
-      return await handleRecall(db, hints);
-    }
 
     if (subcommand === 'cue') {
       const agent_id = (args.agent_id ?? '').toString();
