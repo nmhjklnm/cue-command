@@ -103,6 +103,7 @@ async function main() {
         '  cueme proto ls',
         '  cueme proto path <agent>',
         '  cueme fix <issue>',
+        '  cueme migrate',
         '  cueme join <agent_runtime>',
         '  cueme cue <agent_id> -',
         '  cueme pause <agent_id> [prompt|-]',

@@ -336,12 +336,40 @@ async function handlePause(db, { agent_id, prompt }) {
   });
 }
 
+async function handleMigrate(db) {
+  await initSchema(db);
+
+  await run(
+    db,
+    [
+      'CREATE TABLE IF NOT EXISTS conversation_pins (',
+      '  conv_type TEXT NOT NULL,',
+      '  conv_id TEXT NOT NULL,',
+      '  view TEXT NOT NULL,',
+      '  pin_order INTEGER PRIMARY KEY AUTOINCREMENT,',
+      '  pinned_at DATETIME DEFAULT CURRENT_TIMESTAMP,',
+      '  UNIQUE(conv_type, conv_id, view)',
+      ')',
+    ].join('\n')
+  );
+
+  await run(db, 'UPDATE schema_meta SET value = ? WHERE key = ?', ['3', 'schema_version']);
+  await run(db, 'INSERT OR IGNORE INTO schema_meta (key, value) VALUES (?, ?)', [
+    'schema_version',
+    '3',
+  ]);
+
+  return { ok: true, data: { message: 'migrated schema_version to 3' } };
+}
+
 async function handleCommand({ subcommand, args }) {
   const { db, dbPath } = openDb();
   try {
-    await initSchema(db);
-
     if (subcommand === 'join') return await handleJoin(db, args.agent_runtime);
+
+    if (subcommand === 'migrate') return await handleMigrate(db);
+
+    await initSchema(db);
 
     if (subcommand === 'cue') {
       const agent_id = (args.agent_id ?? '').toString();

@@ -112,7 +112,7 @@ async function initSchema(db) {
     const reqCount = reqCountRow ? Number(reqCountRow.n) : 0;
     const respCount = respCountRow ? Number(respCountRow.n) : 0;
     if (reqCount === 0 && respCount === 0) {
-      await run(db, 'INSERT INTO schema_meta (key, value) VALUES (?, ?)', ['schema_version', '2']);
+      await run(db, 'INSERT INTO schema_meta (key, value) VALUES (?, ?)', ['schema_version', '3']);
     }
   }
 }
