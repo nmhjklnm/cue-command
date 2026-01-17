@@ -46,21 +46,6 @@ function pathExists(p) {
   }
 }
 
-function findGitRoot(startDir) {
-  let current = startDir || process.cwd();
-  const root = path.parse(current).root;
-  
-  while (current !== root) {
-    const gitPath = path.join(current, '.git');
-    if (pathExists(gitPath)) {
-      return current;
-    }
-    current = path.dirname(current);
-  }
-  
-  return null;
-}
-
 function detectVscodeCandidates({ platform }) {
   const candidates = [];
   const cwd = process.cwd();
@@ -108,16 +93,10 @@ function detectWindsurfCandidates({ platform }) {
 
 function detectKiroCandidates({ platform }) {
   const candidates = [];
-  
-  // Workspace-level (repo-local): only check if we're in a git repo
-  const gitRoot = findGitRoot();
-  if (gitRoot) {
-    candidates.push(path.join(gitRoot, '.kiro', 'cueme_proto.md'));
-  }
-
-  // User-level (standard)
   const home = os.homedir();
   const userProfile = process.env.USERPROFILE || home;
+
+  // User-level only (no repo-local detection for Kiro)
   if (platform === 'macos') candidates.push(path.join(home, '.kiro', 'cueme_proto.md'));
   if (platform === 'linux') candidates.push(path.join(home, '.config', 'kiro', 'cueme_proto.md'));
   if (platform === 'windows') {
