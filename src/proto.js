@@ -91,6 +91,22 @@ function detectWindsurfCandidates({ platform }) {
   return candidates;
 }
 
+function detectKiroCandidates({ platform }) {
+  const candidates = [];
+  const home = os.homedir();
+  const userProfile = process.env.USERPROFILE || home;
+
+  // User-level only (no repo-local detection for Kiro)
+  // Kiro uses ~/.kiro/steering/ directory for global steering files
+  if (platform === 'macos') candidates.push(path.join(home, '.kiro', 'steering', 'cueme_proto.md'));
+  if (platform === 'linux') candidates.push(path.join(home, '.kiro', 'steering', 'cueme_proto.md'));
+  if (platform === 'windows') {
+    candidates.push(path.join(userProfile, '.kiro', 'steering', 'cueme_proto.md'));
+  }
+
+  return candidates;
+}
+
 function firstExistingPath(candidates) {
   for (const p of candidates) {
     if (typeof p === 'string' && p.trim().length > 0 && pathExists(p)) return p;
@@ -125,6 +141,11 @@ function defaultPathMapTemplate() {
   out['windows.windsurf'] = path.join(userProfile, '.codeium', 'windsurf', 'memories', 'global_rules.md');
   out['linux.windsurf'] = path.join(home, '.codeium', 'windsurf', 'memories', 'global_rules.md');
 
+  // Kiro
+  out['macos.kiro'] = path.join(home, '.kiro', 'steering', 'cueme_proto.md');
+  out['windows.kiro'] = path.join(userProfile, '.kiro', 'steering', 'cueme_proto.md');
+  out['linux.kiro'] = path.join(home, '.kiro', 'steering', 'cueme_proto.md');
+
   return out;
 }
 
@@ -135,6 +156,7 @@ function defaultConfigTemplate() {
     'cueme.proto.prefix': {
       windsurf: [],
       vscode: ['---', 'applyTo: "**"', '---'],
+      kiro: [],
     },
     'cueme.proto.protocol_path': protocolPath,
   };
@@ -144,9 +166,10 @@ function detectAndFillTemplatePaths(tpl) {
   const platform = getPlatformKey();
   const keyVscode = `${platform}.vscode`;
   const keyWindsurf = `${platform}.windsurf`;
+  const keyKiro = `${platform}.kiro`;
 
   const pathMap = tpl['cueme.proto.path'] || {};
-  const detected = { platform, vscode: '', windsurf: '' };
+  const detected = { platform, vscode: '', windsurf: '', kiro: '' };
 
   if (typeof pathMap !== 'object' || Array.isArray(pathMap)) {
     return { tpl, detected };
@@ -166,6 +189,14 @@ function detectAndFillTemplatePaths(tpl) {
     if (p) {
       pathMap[keyWindsurf] = p;
       detected.windsurf = p;
+    }
+  }
+
+  if (typeof pathMap[keyKiro] !== 'string' || pathMap[keyKiro].trim().length === 0) {
+    const p = firstExistingPath(detectKiroCandidates({ platform }));
+    if (p) {
+      pathMap[keyKiro] = p;
+      detected.kiro = p;
     }
   }
 
@@ -374,9 +405,11 @@ function protoInit() {
   const platform = detected && detected.platform ? detected.platform : getPlatformKey();
   const keyVscode = `${platform}.vscode`;
   const keyWindsurf = `${platform}.windsurf`;
+  const keyKiro = `${platform}.kiro`;
   const vs = detected && detected.vscode ? 'detected' : 'empty';
   const ws = detected && detected.windsurf ? 'detected' : 'empty';
-  return `ok: initialized ${p} (auto-detect: ${keyVscode}=${vs}, ${keyWindsurf}=${ws})`;
+  const ks = detected && detected.kiro ? 'detected' : 'empty';
+  return `ok: initialized ${p} (auto-detect: ${keyVscode}=${vs}, ${keyWindsurf}=${ws}, ${keyKiro}=${ks})`;
 }
 
 module.exports = {
