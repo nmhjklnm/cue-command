@@ -404,10 +404,8 @@ function protoRemove(agent) {
   const targetPath = resolveTargetPath({ cfg, agent });
 
   let existing = '';
-  let exists = false;
   try {
     existing = fs.readFileSync(targetPath, 'utf8');
-    exists = true;
   } catch {
     return `ok: file does not exist: ${targetPath}`;
   }
@@ -419,7 +417,6 @@ function protoRemove(agent) {
     return `ok: no managed block found in: ${targetPath}`;
   }
 
-  const eol = detectEol(existing);
   const beginIdx = beginMatch.index;
   const endIdx = endMatch.index;
   const endLen = endMatch[0].length;
@@ -427,20 +424,16 @@ function protoRemove(agent) {
   const before = existing.slice(0, beginIdx);
   const after = existing.slice(endIdx + endLen);
 
+  const eol = detectEol(existing);
   const afterTrim = after.startsWith(eol) ? after.slice(eol.length) : after;
-  let out = before + afterTrim;
-
-  out = out.trimEnd();
-  if (out.length > 0) {
-    out += eol;
-  }
+  const out = before + afterTrim;
 
   if (out.trim().length === 0) {
     try {
       fs.unlinkSync(targetPath);
       return `ok: removed managed block and deleted empty file: ${targetPath}`;
     } catch (err) {
-      return `ok: removed managed block but failed to delete file: ${targetPath}`;
+      throw new Error(`error: failed to delete file after removing managed block: ${targetPath}: ${err.message}`);
     }
   }
 
