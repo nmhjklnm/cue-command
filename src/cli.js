@@ -1,7 +1,7 @@
 const { readAllStdin } = require('./io');
 const { handleCommand } = require('./handler');
 const { parseTagBlocksEnvelope } = require('./envelope');
-const { protoApply, protoInit, protoLs, protoPath, protoRender } = require('./proto');
+const { protoApply, protoRemove, protoInit, protoLs, protoPath, protoRender } = require('./proto');
 const pkg = require('../package.json');
 const fs = require('fs');
 const path = require('path');
@@ -99,6 +99,7 @@ async function main() {
         '  cueme -p|--protocol',
         '  cueme proto <agent>',
         '  cueme proto apply <agent>',
+        '  cueme proto rm|remove <agent>',
         '  cueme proto init',
         '  cueme proto ls',
         '  cueme proto path <agent>',
@@ -255,6 +256,17 @@ async function main() {
           return;
         }
         process.stdout.write(protoApply(String(agent)) + '\n');
+        return;
+      }
+
+      if (action === 'rm' || action === 'remove') {
+        const agent = pos[1];
+        if (!agent) {
+          process.stderr.write('error: missing <agent>\n');
+          process.exitCode = 2;
+          return;
+        }
+        process.stdout.write(protoRemove(String(agent)) + '\n');
         return;
       }
 
