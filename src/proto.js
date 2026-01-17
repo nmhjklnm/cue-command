@@ -399,6 +399,55 @@ function protoApply(agent) {
   return `ok: applied to ${targetPath}`;
 }
 
+function protoRemove(agent) {
+  const cfg = readConfigOrThrow({ auto_init: true });
+  const targetPath = resolveTargetPath({ cfg, agent });
+
+  let existing = '';
+  let exists = false;
+  try {
+    existing = fs.readFileSync(targetPath, 'utf8');
+    exists = true;
+  } catch {
+    return `ok: file does not exist: ${targetPath}`;
+  }
+
+  const beginMatch = existing.match(BEGIN_MARKER_RE);
+  const endMatch = existing.match(END_MARKER_RE);
+
+  if (!beginMatch || !endMatch || endMatch.index <= beginMatch.index) {
+    return `ok: no managed block found in: ${targetPath}`;
+  }
+
+  const eol = detectEol(existing);
+  const beginIdx = beginMatch.index;
+  const endIdx = endMatch.index;
+  const endLen = endMatch[0].length;
+
+  const before = existing.slice(0, beginIdx);
+  const after = existing.slice(endIdx + endLen);
+
+  const afterTrim = after.startsWith(eol) ? after.slice(eol.length) : after;
+  let out = before + afterTrim;
+
+  out = out.trimEnd();
+  if (out.length > 0) {
+    out += eol;
+  }
+
+  if (out.trim().length === 0) {
+    try {
+      fs.unlinkSync(targetPath);
+      return `ok: removed managed block and deleted empty file: ${targetPath}`;
+    } catch (err) {
+      return `ok: removed managed block but failed to delete file: ${targetPath}`;
+    }
+  }
+
+  fs.writeFileSync(targetPath, out, 'utf8');
+  return `ok: removed managed block from: ${targetPath}`;
+}
+
 function protoInit() {
   const { created, path: p, detected } = initConfigIfMissing();
   if (!created) return `ok: exists ${p}`;
@@ -417,6 +466,7 @@ module.exports = {
   END_MARKER,
   getPlatformKey,
   protoApply,
+  protoRemove,
   protoInit,
   protoLs,
   protoPath,
