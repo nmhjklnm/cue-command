@@ -97,10 +97,11 @@ function detectKiroCandidates({ platform }) {
   const userProfile = process.env.USERPROFILE || home;
 
   // User-level only (no repo-local detection for Kiro)
-  if (platform === 'macos') candidates.push(path.join(home, '.kiro', 'cueme_proto.md'));
-  if (platform === 'linux') candidates.push(path.join(home, '.config', 'kiro', 'cueme_proto.md'));
+  // Kiro uses ~/.kiro/steering/ directory for global steering files
+  if (platform === 'macos') candidates.push(path.join(home, '.kiro', 'steering', 'cueme_proto.md'));
+  if (platform === 'linux') candidates.push(path.join(home, '.kiro', 'steering', 'cueme_proto.md'));
   if (platform === 'windows') {
-    candidates.push(path.join(userProfile, '.kiro', 'cueme_proto.md'));
+    candidates.push(path.join(userProfile, '.kiro', 'steering', 'cueme_proto.md'));
   }
 
   return candidates;
@@ -141,9 +142,9 @@ function defaultPathMapTemplate() {
   out['linux.windsurf'] = path.join(home, '.codeium', 'windsurf', 'memories', 'global_rules.md');
 
   // Kiro
-  out['macos.kiro'] = path.join(home, '.kiro', 'cueme_proto.md');
-  out['windows.kiro'] = path.join(userProfile, '.kiro', 'cueme_proto.md');
-  out['linux.kiro'] = path.join(home, '.config', 'kiro', 'cueme_proto.md');
+  out['macos.kiro'] = path.join(home, '.kiro', 'steering', 'cueme_proto.md');
+  out['windows.kiro'] = path.join(userProfile, '.kiro', 'steering', 'cueme_proto.md');
+  out['linux.kiro'] = path.join(home, '.kiro', 'steering', 'cueme_proto.md');
 
   return out;
 }
