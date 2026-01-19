@@ -139,6 +139,21 @@ async function handleJoin(db, agent_runtime) {
   const project_dir = process.cwd();
   const agent_terminal = detectAgentTerminal();
   const normalized_runtime = normalizeAgentRuntime(agent_runtime);
+  const updated_at = nowIso();
+
+  await run(
+    db,
+    [
+      'INSERT INTO agent_envs (agent_id, agent_runtime, project_dir, agent_terminal, updated_at)',
+      'VALUES (?, ?, ?, ?, ?)',
+      'ON CONFLICT(agent_id) DO UPDATE SET',
+      '  agent_runtime = excluded.agent_runtime,',
+      '  project_dir = excluded.project_dir,',
+      '  agent_terminal = excluded.agent_terminal,',
+      '  updated_at = excluded.updated_at',
+    ].join('\n'),
+    [agent_id, normalized_runtime, project_dir, agent_terminal, updated_at]
+  );
   
   let message =
     `agent_id=${agent_id}\n` +

@@ -93,6 +93,19 @@ async function initSchema(db) {
   await run(
     db,
     [
+      'CREATE TABLE IF NOT EXISTS agent_envs (',
+      '  agent_id TEXT PRIMARY KEY,',
+      '  agent_runtime TEXT,',
+      '  project_dir TEXT,',
+      '  agent_terminal TEXT,',
+      '  updated_at TEXT',
+      ')',
+    ].join('\n')
+  );
+
+  await run(
+    db,
+    [
       'CREATE TABLE IF NOT EXISTS cue_response_files (',
       '  response_id INTEGER NOT NULL,',
       '  file_id INTEGER NOT NULL,',
