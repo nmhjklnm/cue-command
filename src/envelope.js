@@ -3,10 +3,14 @@ function parseTagBlocksEnvelope(raw, opts = {}) {
   const text = String(raw == null ? '' : raw);
   const trimmed = text.trim();
   if (!trimmed) {
-    // Fallback: use default prompt based on command type
-    // allowPayload === true means cue command, false means pause command
-    const defaultPrompt = allowPayload ? 'hi' : 'pause';
-    return { ok: true, prompt: defaultPrompt, payload: null };
+    return {
+      ok: false,
+      error:
+        'error: stdin cannot be empty. You MUST provide input using tag-block envelope:\n' +
+        '<cueme_prompt>\n...\n</cueme_prompt>\n' +
+        (allowPayload ? '<cueme_payload>\n...\n</cueme_payload>\n' : '') +
+        'This is critical for proper interaction flow.\n',
+    };
   }
 
   if (trimmed.startsWith('{')) {
