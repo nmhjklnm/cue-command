@@ -4,9 +4,13 @@ const path = require('path');
 
 const BEGIN_MARKER = '<!-- HUMAN_AGENT_PROTO_BEGIN -->';
 const END_MARKER = '<!-- HUMAN_AGENT_PROTO_END -->';
+const RUNTIME_BEGIN_MARKER = '<!-- HUMAN_AGENT_RUNTIME_BEGIN -->';
+const RUNTIME_END_MARKER = '<!-- HUMAN_AGENT_RUNTIME_END -->';
 
 const BEGIN_MARKER_RE = /<!--\s*(?:HUMAN|HUAMN)_AGENT_PROTO_BEGIN\s*-->/;
 const END_MARKER_RE = /<!--\s*(?:HUMAN|HUAMN)_AGENT_PROTO_END\s*-->/;
+const RUNTIME_BEGIN_MARKER_RE = /<!--\s*(?:HUMAN|HUAMN)_AGENT_RUNTIME_BEGIN\s*-->/;
+const RUNTIME_END_MARKER_RE = /<!--\s*(?:HUMAN|HUAMN)_AGENT_RUNTIME_END\s*-->/;
 
 function getPlatformKey() {
   const p = process.platform;
@@ -146,6 +150,11 @@ function defaultPathMapTemplate() {
   out['windows.kiro'] = path.join(userProfile, '.kiro', 'steering', 'cueme_proto.md');
   out['linux.kiro'] = path.join(home, '.kiro', 'steering', 'cueme_proto.md');
 
+  // Codex (global)
+  out['macos.codex'] = path.join(home, '.codex', 'AGENTS.md');
+  out['windows.codex'] = path.join(userProfile, '.codex', 'AGENTS.md');
+  out['linux.codex'] = path.join(home, '.codex', 'AGENTS.md');
+
   return out;
 }
 
@@ -154,9 +163,16 @@ function defaultConfigTemplate() {
   return {
     'cueme.proto.path': defaultPathMapTemplate(),
     'cueme.proto.prefix': {
+      codex: [],
       windsurf: [],
       vscode: ['---', 'applyTo: "**"', '---'],
       kiro: [],
+    },
+    'cueme.proto.runtime': {
+      codex: [
+        'When calling cueme cue/pause, set the tool wait timeout to 24h to avoid premature tool timeouts.',
+        '不要误解“更新 todo_list”的指令，因为你是 codex，你需要做的是：把 update_plan 当作 todo_list 来维护任务，而不是创建本地 todo_list 文件。',
+      ],
     },
     'cueme.proto.protocol_path': protocolPath,
   };
@@ -259,6 +275,7 @@ function ensureDirForFile(filePath) {
 
 function buildFinalProto({ cfg, agent }) {
   const prefixMap = cfg['cueme.proto.prefix'] || {};
+  const runtimeMap = cfg['cueme.proto.runtime'] || {};
   const protocolPath = cfg['cueme.proto.protocol_path'];
 
   const prefixRaw = prefixMap[agent];
@@ -269,6 +286,18 @@ function buildFinalProto({ cfg, agent }) {
     prefix = prefixRaw.join('\n');
   } else {
     throw new Error(`error: prefix not configured: cueme.proto.prefix["${agent}"]`);
+  }
+
+  const runtimeRaw = runtimeMap[agent];
+  let runtime = '';
+  if (runtimeRaw == null || runtimeRaw === '') {
+    runtime = '';
+  } else if (typeof runtimeRaw === 'string') {
+    runtime = runtimeRaw;
+  } else if (Array.isArray(runtimeRaw) && runtimeRaw.every((x) => typeof x === 'string')) {
+    runtime = runtimeRaw.join('\n');
+  } else {
+    throw new Error(`error: runtime not configured: cueme.proto.runtime["${agent}"]`);
   }
 
   if (typeof protocolPath !== 'string' || protocolPath.trim().length === 0) {
@@ -287,7 +316,7 @@ function buildFinalProto({ cfg, agent }) {
     throw new Error('error: cannot read protocol.md');
   }
 
-  return { prefix, protocol };
+  return { prefix, protocol, runtime };
 }
 
 function resolveTargetPath({ cfg, agent }) {
@@ -302,41 +331,114 @@ function resolveTargetPath({ cfg, agent }) {
   return path.isAbsolute(expanded) ? expanded : path.resolve(process.cwd(), expanded);
 }
 
-function makeManagedBlock({ prefix, protocol, eol }) {
+function makeProtoBlock({ protocol, eol }) {
   const normalizedProto = String(protocol || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const protoLines = normalizedProto.split('\n');
-  const managedBlock = [BEGIN_MARKER, ...protoLines, END_MARKER].join(eol) + eol;
-  
-  if (prefix && prefix.trim()) {
-    const normalizedPrefix = String(prefix).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    return normalizedPrefix + eol + eol + managedBlock;
-  }
-  
-  return managedBlock;
+  return [BEGIN_MARKER, ...protoLines, END_MARKER].join(eol) + eol;
 }
 
-function applyManagedBlock({ existing, prefix, protocol }) {
-  const eol = detectEol(existing);
-  const block = makeManagedBlock({ prefix, protocol, eol });
+function makeRuntimeBlock({ runtime, eol }) {
+  const runtimeText = String(runtime || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  if (!runtimeText) return '';
+  const runtimeLines = runtimeText.split('\n');
+  return [RUNTIME_BEGIN_MARKER, ...runtimeLines, RUNTIME_END_MARKER].join(eol) + eol;
+}
 
-  const beginMatch = existing.match(BEGIN_MARKER_RE);
-  const endMatch = existing.match(END_MARKER_RE);
-  if (beginMatch && endMatch && endMatch.index > beginMatch.index) {
-    const beginIdx = beginMatch.index;
-    const endIdx = endMatch.index;
-    const endLen = endMatch[0].length;
+function findBlockRange(text, beginRe, endRe) {
+  const beginMatch = text.match(beginRe);
+  const endMatch = text.match(endRe);
+  if (!beginMatch || !endMatch || endMatch.index <= beginMatch.index) return null;
+  return { beginIdx: beginMatch.index, endIdx: endMatch.index, endLen: endMatch[0].length };
+}
 
-    const before = existing.slice(0, beginIdx);
-    const after = existing.slice(endIdx + endLen);
+function extractBlock({ text, range, eol }) {
+  let block = text.slice(range.beginIdx, range.endIdx + range.endLen);
+  const after = text.slice(range.endIdx + range.endLen);
+  if (after.startsWith(eol)) block += eol;
+  return block;
+}
 
-    const afterTrim = after.startsWith(eol) ? after.slice(eol.length) : after;
-    return before + block + afterTrim;
+function replaceBlock({ text, range, block, eol }) {
+  const before = text.slice(0, range.beginIdx);
+  const after = text.slice(range.endIdx + range.endLen);
+  const afterTrim = after.startsWith(eol) ? after.slice(eol.length) : after;
+  if (!block) return before + afterTrim;
+  return before + block + afterTrim;
+}
+
+function appendBlock({ text, block, eol }) {
+  if (!block) return text;
+  let out = text || '';
+  if (out && !out.endsWith(eol)) out += eol;
+  out += block;
+  return out;
+}
+
+function makeCombinedBlock({ prefix, protoBlock, runtimeBlock, eol }) {
+  let block = protoBlock + (runtimeBlock || '');
+  if (prefix && prefix.trim()) {
+    const normalizedPrefix = String(prefix).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    return normalizedPrefix + eol + eol + block;
+  }
+  return block;
+}
+
+function applyManagedBlocks({ existing, prefix, protocol, runtime }) {
+  const eol = existing ? detectEol(existing) : os.EOL;
+  const protoBlock = makeProtoBlock({ protocol, eol });
+  const runtimeBlock = makeRuntimeBlock({ runtime, eol });
+  const hasProto = findBlockRange(existing, BEGIN_MARKER_RE, END_MARKER_RE);
+  const hasRuntime = findBlockRange(existing, RUNTIME_BEGIN_MARKER_RE, RUNTIME_END_MARKER_RE);
+  const hasAny = Boolean(hasProto || hasRuntime);
+
+  if (!hasAny) {
+    const combinedBlock = makeCombinedBlock({ prefix, protoBlock, runtimeBlock, eol });
+    return {
+      out: appendBlock({ text: existing, block: combinedBlock, eol }),
+      prefix_added: Boolean(prefix && prefix.trim()),
+      proto_action: 'added',
+      runtime_action: runtimeBlock ? 'added' : 'skipped',
+    };
   }
 
   let out = existing;
-  if (!out.endsWith(eol)) out += eol;
-  out += block;
-  return out;
+  let proto_action = 'skipped';
+  let runtime_action = 'skipped';
+
+  const protoRange = findBlockRange(out, BEGIN_MARKER_RE, END_MARKER_RE);
+  if (protoRange) {
+    const existingBlock = extractBlock({ text: out, range: protoRange, eol });
+    if (existingBlock === protoBlock) {
+      proto_action = 'unchanged';
+    } else {
+      out = replaceBlock({ text: out, range: protoRange, block: protoBlock, eol });
+      proto_action = 'updated';
+    }
+  } else {
+    out = appendBlock({ text: out, block: protoBlock, eol });
+    proto_action = 'added';
+  }
+
+  const runtimeRange = findBlockRange(out, RUNTIME_BEGIN_MARKER_RE, RUNTIME_END_MARKER_RE);
+  if (runtimeRange) {
+    if (runtimeBlock) {
+      const existingBlock = extractBlock({ text: out, range: runtimeRange, eol });
+      if (existingBlock === runtimeBlock) {
+        runtime_action = 'unchanged';
+      } else {
+        out = replaceBlock({ text: out, range: runtimeRange, block: runtimeBlock, eol });
+        runtime_action = 'updated';
+      }
+    } else {
+      out = replaceBlock({ text: out, range: runtimeRange, block: '', eol });
+      runtime_action = 'removed';
+    }
+  } else if (runtimeBlock) {
+    out = appendBlock({ text: out, block: runtimeBlock, eol });
+    runtime_action = 'added';
+  }
+
+  return { out, prefix_added: false, proto_action, runtime_action };
 }
 
 function listAgents({ cfg }) {
@@ -371,7 +473,7 @@ function protoLs() {
 function protoApply(agent) {
   const cfg = readConfigOrThrow({ auto_init: true });
   const targetPath = resolveTargetPath({ cfg, agent });
-  const { prefix, protocol } = buildFinalProto({ cfg, agent });
+  const { prefix, protocol, runtime } = buildFinalProto({ cfg, agent });
 
   let existing = '';
   let exists = false;
@@ -383,20 +485,22 @@ function protoApply(agent) {
     exists = false;
   }
 
-  const eol = exists ? detectEol(existing) : os.EOL;
-  const managedBlock = makeManagedBlock({ prefix, protocol, eol });
-
-  let out;
-  if (!exists) {
-    out = managedBlock;
-  } else {
-    out = applyManagedBlock({ existing, prefix, protocol });
-  }
+  const { out, prefix_added, proto_action, runtime_action } = applyManagedBlocks({
+    existing,
+    prefix,
+    protocol,
+    runtime,
+  });
 
   ensureDirForFile(targetPath);
   fs.writeFileSync(targetPath, out, 'utf8');
 
-  return `ok: applied to ${targetPath}`;
+  const parts = [
+    `prefix=${prefix_added ? 'added' : 'skipped'}`,
+    `proto=${proto_action}`,
+    `runtime=${runtime_action}`,
+  ];
+  return `ok: applied to ${targetPath} (${parts.join(', ')})`;
 }
 
 function protoRemove(agent) {
