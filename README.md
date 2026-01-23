@@ -101,6 +101,16 @@ For detailed `proto` usage (config, init, render, markers), see:
 
 All commands output plain text to stdout.
 
+### fix (Claude Code permissions)
+
+If Claude Code asks for confirmation on every `cueme` command, run:
+
+```bash
+cueme fix claude_permissions
+```
+
+This adds `Bash(cueme *)` to `~/.claude/settings.json`.
+
 ---
 
 ## QQ Group
