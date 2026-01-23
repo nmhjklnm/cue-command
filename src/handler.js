@@ -135,6 +135,7 @@ function detectAgentTerminal() {
 }
 
 async function handleJoin(db, agent_runtime) {
+  await initSchema(db);
   const agent_id = generateName();
   const project_dir = process.cwd();
   const agent_terminal = detectAgentTerminal();

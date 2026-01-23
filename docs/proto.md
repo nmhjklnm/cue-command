@@ -56,7 +56,11 @@ Example:
 
     "macos.codex": "~/.codex/AGENTS.md",
     "windows.codex": "%USERPROFILE%\\.codex\\AGENTS.md",
-    "linux.codex": "~/.codex/AGENTS.md"
+    "linux.codex": "~/.codex/AGENTS.md",
+
+    "macos.claude": "~/.claude/CLAUDE.md",
+    "windows.claude": "%USERPROFILE%\\.claude\\CLAUDE.md",
+    "linux.claude": "~/.claude/CLAUDE.md"
   },
   "cueme.proto.prefix": {
     "vscode": [
@@ -65,12 +69,16 @@ Example:
       "---"
     ],
     "codex": [],
+    "claude": [],
     "windsurf": []
   },
   "cueme.proto.runtime": {
     "codex": [
       "When calling cueme cue/pause, set the tool wait timeout to 24h to avoid premature tool timeouts.",
       "不要误解“更新 todo_list”的指令，因为你是 codex，你需要做的是：把 update_plan 当作 todo_list 来维护任务，而不是创建本地 todo_list 文件。"
+    ],
+    "claude": [
+      "When calling cueme cue/pause, set the tool wait timeout to 24h to avoid premature tool timeouts."
     ]
   },
   "cueme.proto.protocol_path": "~/path/to/protocol.md"
@@ -131,6 +139,7 @@ Auto-detect (current platform only):
 - `vscode`: `.vscode/prompts/human_proto.md` (workspace) then platform user path
 - `windsurf`: `.codeium/windsurf/memories/global_rules.md` (workspace) then platform user path
 - `codex`: uses `~/.codex/AGENTS.md` by default (not auto-detected)
+- `claude`: uses `~/.claude/CLAUDE.md` by default (not auto-detected)
 
 ### Helpers
 
