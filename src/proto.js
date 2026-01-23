@@ -155,6 +155,11 @@ function defaultPathMapTemplate() {
   out['windows.codex'] = path.join(userProfile, '.codex', 'AGENTS.md');
   out['linux.codex'] = path.join(home, '.codex', 'AGENTS.md');
 
+  // Claude Code (global)
+  out['macos.claude'] = path.join(home, '.claude', 'CLAUDE.md');
+  out['windows.claude'] = path.join(userProfile, '.claude', 'CLAUDE.md');
+  out['linux.claude'] = path.join(home, '.claude', 'CLAUDE.md');
+
   return out;
 }
 
@@ -164,6 +169,7 @@ function defaultConfigTemplate() {
     'cueme.proto.path': defaultPathMapTemplate(),
     'cueme.proto.prefix': {
       codex: [],
+      claude: [],
       windsurf: [],
       vscode: ['---', 'applyTo: "**"', '---'],
       kiro: [],
@@ -172,6 +178,9 @@ function defaultConfigTemplate() {
       codex: [
         'When calling cueme cue/pause, set the tool wait timeout to 24h to avoid premature tool timeouts.',
         '不要误解“更新 todo_list”的指令，因为你是 codex，你需要做的是：把 update_plan 当作 todo_list 来维护任务，而不是创建本地 todo_list 文件。',
+      ],
+      claude: [
+        'When calling cueme cue/pause, set the tool wait timeout to 24h to avoid premature tool timeouts.',
       ],
     },
     'cueme.proto.protocol_path': protocolPath,
