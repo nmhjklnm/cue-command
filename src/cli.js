@@ -4,6 +4,7 @@ const { parseTagBlocksEnvelope } = require('./envelope');
 const { protoApply, protoRemove, protoInit, protoLs, protoPath, protoRender } = require('./proto');
 const pkg = require('../package.json');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 async function parseStdinTagBlocksOrExit({ parsed, allow_payload }) {
@@ -63,6 +64,28 @@ function extractTextFromResult(result) {
 
   if (typeof data.message === 'string') return data.message;
   return '';
+}
+
+function ensureClaudePermissions() {
+  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+  let cfg = {};
+  if (fs.existsSync(settingsPath)) {
+    const raw = fs.readFileSync(settingsPath, 'utf8');
+    try {
+      cfg = JSON.parse(raw);
+    } catch {
+      throw new Error(`error: invalid JSON in ${settingsPath}`);
+    }
+  }
+
+  const permissions = cfg.permissions && typeof cfg.permissions === 'object' ? cfg.permissions : {};
+  const allow = Array.isArray(permissions.allow) ? permissions.allow.slice() : [];
+  if (!allow.includes('Bash(cueme *)')) allow.push('Bash(cueme *)');
+
+  cfg.permissions = { ...permissions, allow };
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  fs.writeFileSync(settingsPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+  return settingsPath;
 }
 
 async function main() {
@@ -147,6 +170,7 @@ async function main() {
       process.stderr.write('error: missing <issue>\n');
       process.stderr.write('Available fixes:\n');
       process.stderr.write('  powershell_utf-8  Fix PowerShell encoding for Chinese characters\n');
+      process.stderr.write('  claude_permissions  Allow cueme commands in Claude Code\n');
       process.exitCode = 2;
       return;
     }
@@ -211,10 +235,24 @@ async function main() {
       }
       return;
     }
+
+    if (issue === 'claude_permissions') {
+      try {
+        const settingsPath = ensureClaudePermissions();
+        process.stdout.write(
+          `ok: updated Claude Code permissions in ${settingsPath} (added Bash(cueme *))\n`
+        );
+      } catch (err) {
+        process.stderr.write(`Failed to update Claude Code permissions: ${err.message}\n`);
+        process.exitCode = 1;
+      }
+      return;
+    }
     
     process.stderr.write(`error: unknown issue: ${issue}\n`);
     process.stderr.write('Available fixes:\n');
     process.stderr.write('  powershell_utf-8  Fix PowerShell encoding for Chinese characters\n');
+    process.stderr.write('  claude_permissions  Allow cueme commands in Claude Code\n');
     process.exitCode = 2;
     return;
   }

@@ -83,6 +83,16 @@ cueme pause <agent_id> -
 
 所有命令都以纯文本输出到 stdout。
 
+### fix（Claude Code 权限）
+
+如果 Claude Code 每次执行 `cueme` 都要确认，运行：
+
+```bash
+cueme fix claude_permissions
+```
+
+它会把 `Bash(cueme *)` 写入 `~/.claude/settings.json`。
+
 ---
 
 ## QQ 群
