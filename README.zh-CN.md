@@ -91,7 +91,7 @@ cueme pause <agent_id> -
 cueme fix claude_permissions
 ```
 
-它会把 `Bash(cueme *)` 写入 `~/.claude/settings.json`。
+它会把 `Bash` 写入 `~/.claude/settings.json`。
 
 ---
 

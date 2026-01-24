@@ -66,8 +66,7 @@ function extractTextFromResult(result) {
   return '';
 }
 
-function ensureClaudePermissions() {
-  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+function upsertClaudeSettings(settingsPath, { rule } = {}) {
   let cfg = {};
   if (fs.existsSync(settingsPath)) {
     const raw = fs.readFileSync(settingsPath, 'utf8');
@@ -80,11 +79,22 @@ function ensureClaudePermissions() {
 
   const permissions = cfg.permissions && typeof cfg.permissions === 'object' ? cfg.permissions : {};
   const allow = Array.isArray(permissions.allow) ? permissions.allow.slice() : [];
-  if (!allow.includes('Bash(cueme *)')) allow.push('Bash(cueme *)');
-
+  if (rule && !allow.includes(rule)) allow.push(rule);
   cfg.permissions = { ...permissions, allow };
   fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
   fs.writeFileSync(settingsPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+}
+
+function ensureClaudePermissions() {
+  const rule = 'Bash';
+  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+  upsertClaudeSettings(settingsPath, { rule });
+
+  const localDir = path.join(process.cwd(), '.claude');
+  const localPath = path.join(localDir, 'settings.local.json');
+  if (fs.existsSync(localDir) || fs.existsSync(localPath)) {
+    upsertClaudeSettings(localPath, { rule });
+  }
   return settingsPath;
 }
 
@@ -240,7 +250,7 @@ async function main() {
       try {
         const settingsPath = ensureClaudePermissions();
         process.stdout.write(
-          `ok: updated Claude Code permissions in ${settingsPath} (added Bash(cueme *))\n`
+          `ok: updated Claude Code permissions in ${settingsPath} (added Bash)\n`
         );
       } catch (err) {
         process.stderr.write(`Failed to update Claude Code permissions: ${err.message}\n`);

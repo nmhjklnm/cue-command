@@ -109,7 +109,7 @@ If Claude Code asks for confirmation on every `cueme` command, run:
 cueme fix claude_permissions
 ```
 
-This adds `Bash(cueme *)` to `~/.claude/settings.json`.
+This adds `Bash` to `~/.claude/settings.json`.
 
 ---
 
